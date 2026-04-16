@@ -1,0 +1,30 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	load(load)
+	snapshot(snapshot)
+	extract(extract)
+	nav_dfs(nav_dfs)
+	plan(plan)
+	retreat_home(retreat_home)
+	click(click)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> load;
+	click --> snapshot;
+	extract --> nav_dfs;
+	load --> snapshot;
+	nav_dfs -. &nbsp;end&nbsp; .-> __end__;
+	nav_dfs -.-> plan;
+	nav_dfs -.-> snapshot;
+	plan -. &nbsp;done&nbsp; .-> __end__;
+	plan -.-> click;
+	plan -.-> retreat_home;
+	retreat_home --> snapshot;
+	snapshot --> extract;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

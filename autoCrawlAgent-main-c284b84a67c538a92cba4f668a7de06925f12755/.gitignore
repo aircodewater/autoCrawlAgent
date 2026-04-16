@@ -1,0 +1,16 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+results/
+.pytest_cache/
+.mypy_cache/
+*.log
+.idea/
+.vscode/
+*.xlsx
+~$*.xlsx
