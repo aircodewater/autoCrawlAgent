@@ -1,0 +1,369 @@
+
+================================================================================
+爬虫结果评估报告 - 2026-04-16 17:52:14
+================================================================================
+
+总字段数: 65
+匹配字段数: 23
+不匹配字段数: 42
+爬虫值为空的字段数: 33
+参考值为空的字段数: 18
+准确率: 35.38%
+
+--------------------------------------------------------------------------------
+字段详情:
+--------------------------------------------------------------------------------
+✗ 专业链接
+   爬虫值: Example Domain
+   参考值: https://www.artsci.utoronto.ca/future/ready-apply/admission-categories/computer-science
+   原因: 大模型评估：爬虫值'Example Domain'是一个通用的示例域名（通常指example.com），与参考值中具体的多伦多大学文理学院计算机科学专业申请页面URL在域名、路径、协议和语义上均无关联，内容主题和指向目标完全不同。
+
+✓ 专业名称
+   爬虫值: Accounting；Computer Science, Data Science, Information Security, Technology, Coding and Society, App...
+   参考值: HBSc in Computer Science
+   原因: 关键词匹配（匹配3/3个关键词）
+
+✓ 学位名称
+   爬虫值: BBA, BCom, HBSc, HBA, BASc, Bachelor of Kinesiology (BKin), Bachelor of Music (MusBac), Bachelor of ...
+   参考值: HBSc
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✗ 专业代码
+   爬虫值: TSP
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✓ 专业所在校区
+   爬虫值: UTSG (St. George), UTM (Mississauga), UTSC (Scarborough)
+   参考值: St. George: UTSG
+   原因: 关键词匹配（匹配1/2个关键词）
+
+✗ 专业小方向
+   爬虫值: Specialist, Major, Minor（含co-op、regular、Health Sciences Stream等学习路径）；具体包括：Specialist in Information ...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✓ 学院名称
+   爬虫值: Rotman Commerce（Accounting）；Faculty of Arts & Science（UTSG）；U of T Mississauga（UTM）；U of T Scarborou...
+   参考值: Faculty of Arts & Science
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✗ 课程简介
+   爬虫值: 计算机科学与数据科学：培养编程、算法、机器学习、AI、信息安全等能力，支持跨学科应用；工程类：强调实践与研究结合，含600小时以上实操经验及PEY Co-op；健康与生命科学：聚焦分子生物学、神经科学...
+   参考值: Despite the name, Computer Science is not really a science of computers at all. Computers are quite ...
+   原因: 大模型评估：爬虫值描述的是多学科本科项目（含计算机科学、工程、健康科学、人文、数理科学、艺术、社会科学及应用气候学）的培养目标、能力侧重和实践教学特色，属于高校课程体系与专业设置的概览性介绍；而参考值是一段关于计算机科学本质的哲学性、理论性阐释，聚焦于‘计算’这一核心概念、可计算性、规模与范围等抽象原理，并非对具体专业项目结构或教学安排的描述。二者在内容维度（项目概览 vs 学科哲思）、粒度（应用导向的跨学科培养 vs 基础理论探讨）、目的（招生/项目宣传 vs 学术导论）上均无对应关系，不存在语义匹配。
+
+✓ 学习模式（全日制/非全日制/线上）
+   爬虫值: 全日制（所有本科项目默认为全日制，页面未提及其他学习模式）
+   参考值: Full-time
+   原因: 大模型评估：‘全日制’是中文对‘Full-time’的标准翻译，且爬虫值明确指出所有本科项目默认为全日制，页面未提及其他学习模式，语义与参考值完全一致。
+
+✓ 学制（时长）
+   爬虫值: 4年（标准本科学制；co-op项目在4年内整合带薪实习，不延长总时长；minor需嵌入主修HBSc中，整体仍为4年）
+   参考值: 4 years
+   原因: 数值匹配（匹配1个数字）
+
+✗ 学费
+   爬虫值: 学费因专业、年级及学生类别（安省/国内/国际）而异
+   参考值: Year 1 $62,950
+   原因: 大模型评估：爬虫值描述学费具有多重变量依赖（专业、年级、学生类别），属于定性说明；参考值为具体数值（Year 1 $62,950），未指明对应的专业、学生类别等关键条件，无法确认该数值是否与爬虫值所涵盖的某一具体情况一致，缺乏可比性和明确对应关系。
+
+✓ 是否有带薪实习
+   爬虫值: 是，提供Work-integrated learning option（带薪实习选项），定义为'OPTIONAL, PAID WORK EXPERIENCES'；含PEY Co-op（最多20个月）、...
+   参考值: 可选
+   原因: 大模型评估：爬虫值明确指出Work-integrated learning option为'OPTIONAL, PAID WORK EXPERIENCES'，并列举了多种可选带薪实习项目（如PEY Co-op、UTSC Co-op等），且多个专业以'(co-op)'后缀标注，表明该选项为学生可自主选择而非强制；'可选'准确概括了其非强制性、学生可选参与的核心属性，语义一致，因此匹配。
+
+✓ OSSD成绩要求
+   爬虫值: Ontario Secondary School Diploma (OSSD) with six subjects at the 4U/M level, including English；Grade...
+   参考值: 学历背景要求：
+Ontario High School: General Admission Requirements
+Ontario Secondary School Diploma (OSSD)
+...
+   原因: 数值匹配（匹配2个数字）
+
+✗ 美高成绩要求
+   爬虫值: (空)
+   参考值: 学历背景要求：
+U.S. High School：General Admission Requirements
+Senior Year/Grade 12 in an accredited high s...
+   原因: 爬虫值为空，参考值非空
+
+✗ A level成绩要求
+   爬虫值: (空)
+   参考值: 学历背景要求：
+British-Patterned: General Admission Requirements
+At least five different IGCSE or GCSE or O...
+   原因: 爬虫值为空，参考值非空
+
+✓ IB成绩要求
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✗ 入学要求
+   爬虫值: Ontario Secondary School Diploma (OSSD) with six subjects at the 4U/M level, including English；需满足专业...
+   参考值: D15+D16+D17+D20+D23
+   原因: 大模型评估：爬虫值描述的是加拿大安大略省高中毕业文凭（OSSD）的申请要求，包括6门4U/M课程（含英语）、专业先修课、补充申请表（SAF）、英语语言成绩及OUAC/JOIN U of T提交流程；而参考值'D15+D16+D17+D20+D23'为无上下文的代码组合，未体现任何教育体系、学历类型、课程要求或申请流程信息，二者在内容维度（资格类型、地域、评估标准、提交方式等）完全不对应，无法构成有效匹配。
+
+✗ 先修课程要求
+   爬虫值: (空)
+   参考值: OSSD:
+Required High School Courses:
+English (ENG4U),Calculus (MCV4U)
+
+Recommended Range for Required...
+   原因: 爬虫值为空，参考值非空
+
+✗ 学术要求
+   爬虫值: 以高中学术成绩为主要评审依据；无需SAF的专业录取完全基于学术记录及先修课成绩；国际学生需提供官方成绩单及英语语言能力证明；学位需完成20个学分，含5类广度（Breadth）课程各至少0.5学分
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✗ 完整入学要求
+   爬虫值: 1. 满足专业对应高中先修课程要求；2. 通过OUAC提交本科申请；3. 注册JOIN U of T并查收通知；4. 提交最终成绩单；5. 如适用，提交语言成绩（IELTS/TOEFL等）；6. 如适...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✗ 中国学生入学要求描述
+   爬虫值: 作为国际学生，需提供高中官方成绩单及英语语言能力证明；若授课语言非英语，必须提交语言成绩；成绩单须通过JOIN U of T上传，并填写自报成绩表；部分专业可能额外要求SAF
+   参考值: 学历背景要求：
+China: Minimum Admission Requirements:
+Accredited* Senior High School (Upper Middle School) ...
+   原因: 大模型评估：爬虫值聚焦于国际学生申请多伦多大学所需的高中官方成绩单、英语语言能力证明（如授课语言非英语则强制要求）、JOIN U of T上传流程及可能的SAF附加要求，属于申请材料与流程层面的具体操作性要求；而参考值描述的是中国学生学历背景的硬性准入条件（如高中毕业证、会考、高考）、考试成绩提交政策（SAT/ACT/AP）及均分要求（90分以上），属于学术资格与成绩门槛层面的标准化要求。二者在信息维度（流程性 vs 资格性）、适用范围（通用国际生 vs 特定中国籍学生）、具体内容（语言证明、上传系统、SAF vs 高考/会考/均分）上均无直接对应关系，不构成匹配。
+
+✓ 是否需要工作经验
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✗ 是否接受转专业
+   爬虫值: 页面未说明校内转专业（internal transfer）政策；仅提及从其他院校转入（external transfer）需通过OUAC申请
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✗ 开学日期
+   爬虫值: 主要开学时间为每年9月（秋季学期）；另设1月入学通道，目前仅面向符合条件的加拿大国内新生
+   参考值: 2026-09
+   原因: 大模型评估：爬虫值描述的是常规开学时间（每年9月）及特殊入学通道（1月，仅限加拿大国内新生），属于一般性时间规律说明；参考值'2026-09'是一个具体年份和月份的精确时间点，表示2026年9月。二者类型不一致：前者是周期性招生政策描述，后者是特定日历时间戳，无法直接等同或推导匹配。
+
+✗ 申请轮次
+   爬虫值: Admission offers released in rounds: late January, late February, late March, late April, and late M...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✗ 申请开始日期
+   爬虫值: Late September: Online applications for fall 2026 available on OUAC
+   参考值: 2025-09-18
+   原因: 大模型评估：爬虫值描述的是'9月下旬：OUAC开放2026年秋季入学的在线申请'，对应时间点为2026年9月下旬；参考值'2025-09-18'是2025年9月18日，属于2025年秋季，与2026年秋季入学周期不一致，且具体日期（9月18日）虽在9月下旬范围内，但年份相差一年，关键时间语义不匹配。
+
+✓ 申请截止日期
+   爬虫值: January 15: Application deadline for fall 2026 via OUAC（部分专业可能延后，需查看项目具体截止日）
+   参考值: Early Application Deadline：2025-11-07
+
+Regular Deadline：2026-02-02
+   原因: 数值匹配（匹配1个数字）
+
+✗ 雅思成绩要求
+   爬虫值: (空)
+   参考值: 总分：6.5，细分项：6.0
+   原因: 爬虫值为空，参考值非空
+
+✗ 托福成绩要求（旧）
+   爬虫值: (空)
+   参考值: 总分：89，口语：22，写作：22，其他：-
+   原因: 爬虫值为空，参考值非空
+
+✗ 托福成绩要求（新）
+   爬虫值: (空)
+   参考值: 总分：4.5，口语：4.0，写作：4.5，其他：-
+   原因: 爬虫值为空，参考值非空
+
+✗ PTE成绩要求
+   爬虫值: (空)
+   参考值: 总分：65，细分项：60
+   原因: 爬虫值为空，参考值非空
+
+✗ 多邻国成绩要求
+   爬虫值: (空)
+   参考值: 总分：120，输出能力（Production）细分项：120
+   原因: 爬虫值为空，参考值非空
+
+✗ 免语言要求的条件
+   爬虫值: (空)
+   参考值: Exemptions from our English language requirement
+You may qualify for an exemption from the English f...
+   原因: 爬虫值为空，参考值非空
+
+✗ 申请时是否需要语言成绩
+   爬虫值: 是，申请时需提供英语语言能力证明；页面明确指出'Proof of English language proficiency may be necessary.'
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✓ GRE成绩要求
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ GMAT成绩要求
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 课程结构
+   爬虫值: 提供Specialist/Major/Minor三级结构，覆盖UTSG/UTM/UTSC三校区；含co-op、research（ROP）、field courses、global field scho...
+   参考值: Completion Requirements:
+(12.0 credits, including at least 1.5 credits at the 400-level)
+
+First year...
+   原因: 数值匹配（匹配2个数字）
+
+✓ 是否直接合作
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 合作机构
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 申请专业个数限制
+   爬虫值: 申请时仅可选择一个admission category（招生类别），该类别涵盖若干相关专业；被录后可能获该类别内其他专业的alternate offer；OUAC系统本身通常允许多个program c...
+   参考值: We offer flexibility when it comes to your program choices. You can apply to up to three different p...
+   原因: 部分内容匹配
+
+✗ 是否有简历要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 简历要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 是否有个人陈述要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 个人陈述要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 是否推荐信要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 推荐信要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 是否作品集要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 作品集要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 是否面试
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 面试要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✓ 是否竞赛/活动要求
+   爬虫值: 否；页面未提及任何竞赛或课外活动作为申请强制性要求
+   参考值: 无
+   原因: 大模型评估：爬虫值表明页面未提及竞赛或课外活动作为申请强制性要求，即该要求不存在或为‘无’；参考值为‘无’，二者语义一致，均表示缺失或不适用，因此匹配。
+
+✗ 竞赛/活动要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 其他特殊要求
+   爬虫值: 申请co-op项目需在OUAC选择含co-op选项的专业；须计划主修于50+个提供co-op的项目之一；入学后须维持GPA 2.5以保留在co-op track
+   参考值: Supplemental Application for Computer Science Admission Category
+The supplemental application will b...
+   原因: 大模型评估：爬虫值描述的是申请co-op项目的通用要求（如OUAC专业选择、可选co-op项目范围、GPA维持要求），而参考值描述的是多伦多大学计算机科学专业补充申请（Supplemental Application）的具体流程和内容，二者在主题（co-op track vs. CS admission supplement）、适用对象、要求内容和流程上均无重叠，不构成匹配。
+
+✗ 申请方式
+   爬虫值: 通过安大略省大学申请中心（Ontario Universities’ Application Centre, OUAC）在线申请；需选择一个admission category，录取信将确认该类别或提...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✓ 申请链接
+   爬虫值: https://www.ouac.on.ca/ouac101/
+   参考值: https://www.ouac.on.ca/apply/dashboard/en_CA/user/login
+   原因: 部分内容匹配
+
+✗ 是否需要邮寄学术材料
+   爬虫值: 否；所有学术材料（成绩单、SAF等）均须通过JOIN U of T在线提交
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空
+
+✓ 是否有申请费
+   爬虫值: 是；所有申请人需向OUAC支付不可退还的申请费
+   参考值: 是
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✗ 申请费金额
+   爬虫值: 以OUAC官网为准（页面未提供具体金额）
+   参考值: CAD 331.5
+   原因: 大模型评估：爬虫值明确说明‘以OUAC官网为准’且‘页面未提供具体金额’，属于信息缺失或未披露状态；而参考值为具体数值‘CAD 331.5’，二者在信息确定性、数值存在性上根本不同，无法视为匹配。
+
+✗ 申请费支付方式
+及注意事项
+   爬虫值: (空)
+   参考值: You can use Flywire to make payments from within and outside of Canada.
+To pay:
+Access Flywire's sec...
+   原因: 爬虫值为空，参考值非空
+
+✓ 申请邮件是否只发学生邮箱
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✗ 语言成绩送分Code
+   爬虫值: (空)
+   参考值: 托福：0982-00
+   原因: 爬虫值为空，参考值非空
+
+✗ 主课和预科/语言课程的关联
+   爬虫值: (空)
+   参考值: International Foundation Program
+Location: St. GeorgeDuration:
+Fall session: 8 months;
+Summer sessio...
+   原因: 爬虫值为空，参考值非空
+
+✗ 语言课申请截止日期
+   爬虫值: (空)
+   参考值: International Foundation Program：Early
+Consideration
+Deadline：2025-11-07
+Regular
+Deadline：2026-02-02...
+   原因: 爬虫值为空，参考值非空
+
+✓ 是否需要WES认证
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 是否需要ATAS
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
