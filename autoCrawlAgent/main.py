@@ -141,9 +141,34 @@ def main() -> None:
         metavar="FMT",
         help="覆盖由后缀推断的导出格式（mermaid / png / ascii）",
     )
+    parser.add_argument(
+        "--enable-search",
+        action="store_true",
+        help="启用基于自然语言搜索的功能（自动为待处理主题生成搜索查询）",
+    )
+    parser.add_argument(
+        "--search-engine",
+        type=str,
+        choices=["google", "bing", "duckduckgo"],
+        default=None,
+        metavar="ENGINE",
+        help="搜索引擎选择：google（需 GOOGLE_API_KEY + GOOGLE_SEARCH_ENGINE_ID）、bing（需 BING_API_KEY）、duckduckgo（免费，无需 API 密钥）",
+    )
+    parser.add_argument(
+        "--search-threshold",
+        type=float,
+        default=0.5,
+        metavar="THRESHOLD",
+        help="搜索阈值（0-1），值越大越倾向于执行搜索（默认 0.5）",
+    )
     args = parser.parse_args()
     if args.llm:
         os.environ["LLM_PROVIDER"] = args.llm
+    
+    # 设置搜索引擎环境变量
+    if args.search_engine:
+        os.environ["SEARCH_ENGINE"] = args.search_engine
+        print(f"[AgentCrawler] 搜索引擎: {args.search_engine}", file=sys.stderr)
 
     if args.export_graph:
         out = Path(args.export_graph).expanduser()
@@ -205,6 +230,8 @@ def main() -> None:
             max_home_retreats=max(0, args.max_home_retreats),
             refine_results=not args.no_refine_results,
             skill_context=skill_text or None,
+            enable_search=args.enable_search,
+            search_threshold=args.search_threshold,
         )
     except Exception as e:
         print(json.dumps({"error": str(e)}, ensure_ascii=False), file=sys.stderr)

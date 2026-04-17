@@ -19,6 +19,12 @@ from crawler.llm_client import (
     get_chat_model,
     refine_merged_results,
 )
+from crawler.search_integration import (
+    SearchDrivenCrawler,
+    SearchDecisionMaker,
+    create_search_driven_crawler,
+    create_search_decision_maker,
+)
 from crawler.state import CrawlerState
 
 
@@ -274,8 +280,27 @@ def _merge_topic_text(old: str, new: str) -> str:
     return old + "\n\n---\n\n" + new
 
 
-def build_graph(session: BrowserSession):
-    """构建 ReAct 风格状态图：加载 → 快照 → LLM 抽取 → 条件分支 → 规划点击 → 循环。"""
+def build_graph(session: BrowserSession, enable_search: bool = False, search_threshold: float = 0.5):
+    """构建 ReAct 风格状态图：加载 → 快照 → LLM 抽取 → 条件分支 → 规划点击 → 循环。
+    
+    Args:
+        session: 浏览器会话实例
+        enable_search: 是否启用搜索功能
+        search_threshold: 搜索阈值（0-1），值越大越倾向于搜索
+    """
+    # 初始化搜索相关组件
+    search_crawler = None
+    search_decision_maker = None
+    if enable_search:
+        search_crawler = create_search_driven_crawler(
+            browser_session=session,
+            enable_search=enable_search,
+            max_search_results=10,
+        )
+        search_decision_maker = create_search_decision_maker(
+            enable_auto_search=True,
+            search_threshold=search_threshold,
+        )
 
     def node_load(state: CrawlerState) -> Dict[str, Any]:
         url = state.get("url") or ""
@@ -574,7 +599,7 @@ def build_graph(session: BrowserSession):
 
         return {"nav_stack": [], "visited_urls": visited, "nav_route": "fallthrough"}
 
-    def route_after_nav(state: CrawlerState) -> Literal["snapshot", "plan", "end"]:
+    def route_after_nav(state: CrawlerState) -> Literal["snapshot", "plan", "search", "end"]:
         nr = state.get("nav_route") or "fallthrough"
         if nr == "snapshot":
             return "snapshot"
@@ -591,10 +616,90 @@ def build_graph(session: BrowserSession):
             return "end"
         pending: List[str] = state.get("pending_topics") or []
         if pending:
+            # 如果启用搜索，检查是否需要搜索
+            if search_crawler and search_decision_maker:
+                decision = search_decision_maker.decide_search(
+                    topics=state.get("topics") or [],
+                    current_results=state.get("results") or {},
+                    pending_topics=pending,
+                    iteration=int(state.get("iteration") or 0),
+                    max_iterations=max_it,
+                    base_url=state.get("url") or "",
+                )
+                if decision.get("should_search"):
+                    print(f"[AgentCrawler] 决定执行搜索: {decision.get('reason')}", file=sys.stderr)
+                    return "search"
             return "plan"
         if state.get("explore_worthy"):
             return "plan"
         return "end"
+
+    def node_search(state: CrawlerState) -> Dict[str, Any]:
+        """搜索节点：基于待处理主题执行搜索，并返回搜索结果"""
+        if not search_crawler:
+            return {"last_error": "搜索功能未启用", "nav_route": "fallthrough"}
+        
+        topics: List[str] = state.get("topics") or []
+        pending: List[str] = state.get("pending_topics") or []
+        base_url = state.get("url") or ""
+        current_results = state.get("results") or {}
+        iteration = int(state.get("iteration") or 0)
+        max_iterations = int(state.get("max_iterations") or 5)
+        
+        # 选择要搜索的主题（优先搜索前 3 个待处理主题）
+        topics_to_search = pending[:3]
+        
+        if not topics_to_search:
+            return {"nav_route": "fallthrough"}
+        
+        print(f"[AgentCrawler] 开始搜索 {len(topics_to_search)} 个主题", file=sys.stderr)
+        
+        # 对每个主题执行搜索
+        all_search_results = []
+        for topic in topics_to_search:
+            try:
+                search_result = search_crawler.search_and_crawl(
+                    topic=topic,
+                    base_url=base_url,
+                    current_results=current_results,
+                    pending_topics=pending,
+                    iteration=iteration,
+                    max_iterations=max_iterations,
+                )
+                
+                if search_result.get("searched"):
+                    print(
+                        f"[AgentCrawler] 主题 '{topic}' 搜索完成: {search_result.get('message')}",
+                        file=sys.stderr,
+                    )
+                    all_search_results.append({
+                        "topic": topic,
+                        "urls": search_result.get("urls_added", []),
+                        "results": search_result.get("search_results", []),
+                    })
+            except Exception as e:
+                print(f"[AgentCrawler] 主题 '{topic}' 搜索失败: {e}", file=sys.stderr)
+                continue
+        
+        # 如果找到搜索结果，将第一个 URL 添加到待访问列表
+        if all_search_results:
+            # 选择第一个搜索结果的第一个 URL 进行访问
+            first_result = all_search_results[0]
+            urls = first_result.get("urls", [])
+            if urls:
+                print(f"[AgentCrawler] 选择搜索结果 URL: {urls[0]}", file=sys.stderr)
+                # 导航到搜索结果页面
+                try:
+                    session.goto(urls[0])
+                    return {
+                        "nav_route": "snapshot",
+                        "iteration": iteration + 1,
+                    }
+                except Exception as e:
+                    print(f"[AgentCrawler] 导航到搜索结果失败: {e}", file=sys.stderr)
+        
+        # 如果没有搜索结果或导航失败，返回 fallthrough
+        return {"nav_route": "fallthrough"}
 
     def node_plan(state: CrawlerState) -> Dict[str, Any]:
         topics: List[str] = state.get("topics") or []
@@ -823,6 +928,7 @@ def build_graph(session: BrowserSession):
     g.add_node("snapshot", node_snapshot)
     g.add_node("extract", node_extract)
     g.add_node("nav_dfs", node_nav_dfs)
+    g.add_node("search", node_search)
     g.add_node("plan", node_plan)
     g.add_node("retreat_home", node_retreat_home)
     g.add_node("click", node_click)
@@ -834,7 +940,12 @@ def build_graph(session: BrowserSession):
     g.add_conditional_edges(
         "nav_dfs",
         route_after_nav,
-        {"snapshot": "snapshot", "plan": "plan", "end": END},
+        {"snapshot": "snapshot", "plan": "plan", "search": "search", "end": END},
+    )
+    g.add_conditional_edges(
+        "search",
+        lambda state: state.get("nav_route", "fallthrough"),
+        {"snapshot": "snapshot", "fallthrough": "plan"},
     )
     g.add_conditional_edges(
         "plan",
@@ -856,12 +967,16 @@ def run_crawl(
     max_home_retreats: int = 3,
     refine_results: bool = True,
     skill_context: Optional[str] = None,
+    enable_search: bool = False,
+    search_threshold: float = 0.5,
 ) -> CrawlerState:
     """同步运行爬虫图，返回最终状态。refine_results 为 True 时对合并后的 results 再经模型精炼去重。
     skill_context 为本地 Skill 正文时，会注入各步 LLM 系统提示与精炼阶段。
-    max_home_retreats：规划判定无有效交互时，允许从子页退回起始 URL 再规划的次数；0 表示关闭。"""
+    max_home_retreats：规划判定无有效交互时，允许从子页退回起始 URL 再规划的次数；0 表示关闭。
+    enable_search：是否启用搜索功能。
+    search_threshold：搜索阈值（0-1），值越大越倾向于搜索。"""
     session = BrowserSession(headless=headless)
-    graph = build_graph(session)
+    graph = build_graph(session, enable_search=enable_search, search_threshold=search_threshold)
     init: CrawlerState = {
         "url": url,
         "topics": list(topics),
