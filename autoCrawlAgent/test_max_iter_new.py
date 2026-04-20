@@ -7,10 +7,10 @@ import threading
 import sys
 
 # 测试参数设置
-start_iter = 15
+start_iter = 50
 step_iter = 5
-max_target = 53
-max_iter_limit = 30  # 最大--max-iter值
+max_target = 63
+max_iter_limit = 61  # 最大--max-iter值
 output_dir = r"D:\MutiAgent\AgentCrawler\results\test"
 url = "https://future.utoronto.ca/"
 result_file = "max_iter_test_results.txt"
@@ -183,12 +183,12 @@ if any(val > max_iter_limit for val in test_values):
 
 # 使用线程池并行测试（根据CPU核心数设置合理的线程数）
 cpu_count = os.cpu_count() or 4
-max_workers = min(max(4, min(5, cpu_count)), len(test_values))  # 最多10个线程，但不超过CPU核心数和测试值数量
+max_workers = min(max(1, min(1, cpu_count)), len(test_values))  # 最多10个线程，但不超过CPU核心数和测试值数量
 print(f"CPU核心数: {cpu_count}")
 print(f"最大线程数: {max_workers}")
 
 # 批处理参数设置
-batch_size = 3  # 每批次执行的任务数
+batch_size = 1  # 每批次执行的任务数
 print(f"批处理设置: 每批次 {batch_size} 个任务")
 
 # 分组处理

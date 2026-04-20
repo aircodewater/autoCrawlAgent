@@ -247,7 +247,9 @@ class SearchDecisionMaker:
     def __init__(
         self,
         enable_auto_search: bool = True,
-        search_threshold: float = 0.5,
+        search_threshold: float = 0.7,
+        min_page_results: int = 3,
+        min_iteration_for_search: int = 2,
     ):
         """
         初始化搜索决策器
@@ -255,9 +257,13 @@ class SearchDecisionMaker:
         Args:
             enable_auto_search: 是否启用自动搜索
             search_threshold: 搜索阈值（0-1），值越大越倾向于搜索
+            min_page_results: 当前页面最少需要提取到多少结果才考虑搜索
+            min_iteration_for_search: 最小迭代次数才考虑搜索
         """
         self.enable_auto_search = enable_auto_search
         self.search_threshold = search_threshold
+        self.min_page_results = min_page_results
+        self.min_iteration_for_search = min_iteration_for_search
     
     def decide_search(
         self,
@@ -267,6 +273,7 @@ class SearchDecisionMaker:
         iteration: int,
         max_iterations: int,
         base_url: str = "",
+        current_page_results: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """
         决定是否需要搜索
@@ -278,6 +285,7 @@ class SearchDecisionMaker:
             iteration: 当前迭代次数
             max_iterations: 最大迭代次数
             base_url: 基础 URL
+            current_page_results: 当前页面提取到的结果
         
         Returns:
             决策结果字典
@@ -289,36 +297,63 @@ class SearchDecisionMaker:
                 "topics_to_search": [],
             }
         
+        # 检查1：迭代次数是否足够
+        if iteration < self.min_iteration_for_search:
+            return {
+                "should_search": False,
+                "reason": f"迭代次数不足（当前: {iteration}, 最小: {self.min_iteration_for_search}）",
+                "topics_to_search": [],
+            }
+        
+        # 检查2：当前页面是否已充分爬取
+        current_page_results = current_page_results or {}
+        current_page_completed = sum(1 for v in current_page_results.values() if v)
+        if current_page_completed < self.min_page_results:
+            return {
+                "should_search": False,
+                "reason": f"当前页面提取结果不足（当前: {current_page_completed}, 最小: {self.min_page_results}）",
+                "topics_to_search": [],
+            }
+        
+        # 检查3：是否还有待处理的主题
+        if not pending_topics:
+            return {
+                "should_search": False,
+                "reason": "没有待处理的主题",
+                "topics_to_search": [],
+            }
+        
         # 计算完成度
         completed = sum(1 for t in topics if current_results.get(t, ""))
         completion_rate = completed / len(topics) if topics else 0
         
-        # 计算搜索必要性分数
+        # 计算搜索必要性分数（调整权重）
         search_score = 0.0
         
-        # 1. 待处理主题越多，搜索必要性越高
+        # 1. 待处理主题比例（权重最高）
         pending_ratio = len(pending_topics) / len(topics) if topics else 0
-        search_score += pending_ratio * 0.4
+        search_score += pending_ratio * 0.6
         
-        # 2. 迭代早期更倾向于搜索
+        # 2. 迭代进度（后期更倾向搜索，因为需要补充缺失信息）
         iteration_ratio = iteration / max_iterations if max_iterations > 0 else 0
-        search_score += (1 - iteration_ratio) * 0.3
+        search_score += iteration_ratio * 0.2
         
-        # 3. 完成度越低，搜索必要性越高
-        search_score += (1 - completion_rate) * 0.3
+        # 3. 完成度
+        search_score += (1 - completion_rate) * 0.2
         
         # 决定是否搜索
         should_search = search_score >= self.search_threshold
         
-        # 选择要搜索的主题
+        # 选择要搜索的主题（优先选择未找到的主题）
         topics_to_search = []
         if should_search:
-            # 优先搜索待处理的主题
-            topics_to_search = pending_topics[:3]
+            # 只选择完全未找到的主题进行搜索
+            unfound_topics = [t for t in pending_topics if not current_results.get(t, "")]
+            topics_to_search = unfound_topics[:2]  # 每次最多搜索2个主题
         
         return {
             "should_search": should_search,
-            "reason": f"搜索分数: {search_score:.2f} (阈值: {self.search_threshold})",
+            "reason": f"搜索分数: {search_score:.2f} (阈值: {self.search_threshold}), 页面完成: {current_page_completed}, 未找到: {len(topics_to_search)}",
             "topics_to_search": topics_to_search,
             "search_score": search_score,
         }
@@ -404,7 +439,9 @@ def create_search_driven_crawler(
 
 def create_search_decision_maker(
     enable_auto_search: bool = True,
-    search_threshold: float = 0.5,
+    search_threshold: float = 0.7,
+    min_page_results: int = 3,
+    min_iteration_for_search: int = 2,
 ) -> SearchDecisionMaker:
     """
     创建搜索决策器的工厂函数
@@ -412,6 +449,8 @@ def create_search_decision_maker(
     Args:
         enable_auto_search: 是否启用自动搜索
         search_threshold: 搜索阈值
+        min_page_results: 当前页面最少需要提取到多少结果才考虑搜索
+        min_iteration_for_search: 最小迭代次数才考虑搜索
     
     Returns:
         SearchDecisionMaker 实例
@@ -419,4 +458,6 @@ def create_search_decision_maker(
     return SearchDecisionMaker(
         enable_auto_search=enable_auto_search,
         search_threshold=search_threshold,
+        min_page_results=min_page_results,
+        min_iteration_for_search=min_iteration_for_search,
     )

@@ -257,6 +257,8 @@ class SearchAgent:
         max_queries: int = 3,
         max_results: int = 10,
         filter_results: bool = True,
+        university: str = "",
+        program: str = "",
     ) -> List[Dict[str, Any]]:
         """
         根据主题执行搜索
@@ -267,12 +269,14 @@ class SearchAgent:
             max_queries: 最大查询数量
             max_results: 每个查询的最大结果数
             filter_results: 是否过滤结果
+            university: 院校名称
+            program: 专业名称
         
         Returns:
             搜索结果列表
         """
         # 生成搜索查询
-        queries = generate_search_queries(topic, base_url, max_queries)
+        queries = generate_search_queries(topic, base_url, max_queries, university, program)
         
         print(f"[SearchAgent] 为主题生成 {len(queries)} 个搜索查询: {queries}", file=sys.stderr)
         

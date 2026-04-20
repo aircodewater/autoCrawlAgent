@@ -7,6 +7,21 @@ import sys
 from typing import Any, Dict, List, Literal, Optional
 from urllib.parse import urlparse
 
+
+def extract_domain(url: str) -> str:
+    """从 URL 中提取域名"""
+    if not url:
+        return ""
+    try:
+        parsed = urlparse(url)
+        netloc = parsed.netloc
+        # 移除端口号
+        if ":" in netloc:
+            netloc = netloc.split(":")[0]
+        return netloc
+    except Exception:
+        return ""
+
 from langgraph.graph import END, START, StateGraph
 
 from crawler.browser_session import BrowserSession
@@ -491,6 +506,17 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
             else state.get("plan_context_note")
         )
 
+        # 计算当前页面提取到的结果（用于搜索决策）
+        current_page_extracted = {}
+        prior_results = prior or {}
+        for k, v in merged.items():
+            # 只有当前页面新提取到的才计数
+            if v and (k not in prior_results or not prior_results.get(k, "").strip()):
+                current_page_extracted[k] = v
+            elif v and prior_results.get(k, "").strip() != v.strip():
+                # 结果有更新也算
+                current_page_extracted[k] = v
+        
         return {
             "results": merged,
             "pending_topics": pending,
@@ -499,6 +525,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
             "dom_change_hint": None,
             "plan_context_note": plan_context_note_out,
             "last_error": None,
+            "current_page_results": current_page_extracted,  # 记录当前页面提取到的结果
         }
 
     def node_nav_dfs(state: CrawlerState) -> Dict[str, Any]:
@@ -625,6 +652,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
                     iteration=int(state.get("iteration") or 0),
                     max_iterations=max_it,
                     base_url=state.get("url") or "",
+                    current_page_results=state.get("current_page_results") or {},
                 )
                 if decision.get("should_search"):
                     print(f"[AgentCrawler] 决定执行搜索: {decision.get('reason')}", file=sys.stderr)
@@ -636,7 +664,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
 
     def node_search(state: CrawlerState) -> Dict[str, Any]:
         """搜索节点：基于待处理主题执行搜索，并返回搜索结果"""
-        if not search_crawler:
+        if not search_crawler or not search_decision_maker:
             return {"last_error": "搜索功能未启用", "nav_route": "fallthrough"}
         
         topics: List[str] = state.get("topics") or []
@@ -646,57 +674,107 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
         iteration = int(state.get("iteration") or 0)
         max_iterations = int(state.get("max_iterations") or 5)
         
-        # 选择要搜索的主题（优先搜索前 3 个待处理主题）
-        topics_to_search = pending[:3]
+        # 获取搜索决策（包含要搜索的主题）
+        decision = search_decision_maker.decide_search(
+            topics=topics,
+            current_results=current_results,
+            pending_topics=pending,
+            iteration=iteration,
+            max_iterations=max_iterations,
+            base_url=base_url,
+            current_page_results=state.get("current_page_results") or {},
+        )
         
+        if not decision.get("should_search"):
+            return {"nav_route": "fallthrough"}
+        
+        topics_to_search = decision.get("topics_to_search", [])
         if not topics_to_search:
             return {"nav_route": "fallthrough"}
         
-        print(f"[AgentCrawler] 开始搜索 {len(topics_to_search)} 个主题", file=sys.stderr)
+        print(f"[AgentCrawler] 开始搜索 {len(topics_to_search)} 个主题: {topics_to_search}", file=sys.stderr)
         
-        # 对每个主题执行搜索
+        # 收集所有搜索结果
+        all_urls = []
         all_search_results = []
+        
+        # 直接使用 search_agent 进行搜索（search_crawler 的 search_and_crawl 可能有问题）
+        from crawler.search_agent import create_search_agent
+        search_agent = create_search_agent()
+        
         for topic in topics_to_search:
             try:
-                search_result = search_crawler.search_and_crawl(
+                # 执行搜索
+                search_results = search_agent.search_by_topic(
                     topic=topic,
                     base_url=base_url,
-                    current_results=current_results,
-                    pending_topics=pending,
-                    iteration=iteration,
-                    max_iterations=max_iterations,
+                    max_queries=3,
+                    max_results=10,
+                    filter_results=True,
                 )
                 
-                if search_result.get("searched"):
+                if search_results:
                     print(
-                        f"[AgentCrawler] 主题 '{topic}' 搜索完成: {search_result.get('message')}",
+                        f"[AgentCrawler] 主题 '{topic}' 搜索完成，找到 {len(search_results)} 个结果",
                         file=sys.stderr,
                     )
-                    all_search_results.append({
-                        "topic": topic,
-                        "urls": search_result.get("urls_added", []),
-                        "results": search_result.get("search_results", []),
-                    })
+                    
+                    # 提取 URLs
+                    urls = search_agent.extract_urls(search_results)
+                    if urls:
+                        all_urls.extend(urls)
+                        all_search_results.extend(search_results)
             except Exception as e:
                 print(f"[AgentCrawler] 主题 '{topic}' 搜索失败: {e}", file=sys.stderr)
                 continue
         
-        # 如果找到搜索结果，将第一个 URL 添加到待访问列表
-        if all_search_results:
-            # 选择第一个搜索结果的第一个 URL 进行访问
-            first_result = all_search_results[0]
-            urls = first_result.get("urls", [])
-            if urls:
-                print(f"[AgentCrawler] 选择搜索结果 URL: {urls[0]}", file=sys.stderr)
-                # 导航到搜索结果页面
-                try:
-                    session.goto(urls[0])
-                    return {
-                        "nav_route": "snapshot",
-                        "iteration": iteration + 1,
-                    }
-                except Exception as e:
-                    print(f"[AgentCrawler] 导航到搜索结果失败: {e}", file=sys.stderr)
+        # 去重 URLs
+        from crawler.search_utils import deduplicate_urls, normalize_url
+        unique_urls = deduplicate_urls(all_urls)
+        
+        if unique_urls:
+            # 选择最佳 URL：优先选择与 base_url 同域名的，避免过长的 URL
+            base_domain = extract_domain(base_url) if base_url else ""
+            best_url = None
+            best_score = -1
+            
+            for url in unique_urls:
+                score = 0
+                url_domain = extract_domain(url)
+                
+                # 同域名加分
+                if url_domain == base_domain:
+                    score += 10
+                
+                # URL 长度适中加分
+                if 20 <= len(url) <= 150:
+                    score += 5
+                
+                # 包含某些关键词加分（例如：admission, requirements, program）
+                keywords = ["admission", "requirement", "program", "course", "apply", "degree"]
+                for kw in keywords:
+                    if kw in url.lower():
+                        score += 2
+                
+                if score > best_score:
+                    best_score = score
+                    best_url = url
+            
+            # 如果没有最佳，用第一个
+            if not best_url:
+                best_url = unique_urls[0]
+            
+            print(f"[AgentCrawler] 选择搜索结果 URL: {best_url} (分数: {best_score})", file=sys.stderr)
+            
+            # 导航到搜索结果页面
+            try:
+                session.goto(best_url)
+                return {
+                    "nav_route": "snapshot",
+                    "iteration": iteration + 1,
+                }
+            except Exception as e:
+                print(f"[AgentCrawler] 导航到搜索结果失败: {e}", file=sys.stderr)
         
         # 如果没有搜索结果或导航失败，返回 fallthrough
         return {"nav_route": "fallthrough"}

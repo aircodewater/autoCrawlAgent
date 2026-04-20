@@ -5,7 +5,8 @@ from typing import List, Optional, Set
 from urllib.parse import urlparse
 
 
-def generate_search_queries(topic: str, base_url: str = "", max_queries: int = 3) -> List[str]:
+def generate_search_queries(topic: str, base_url: str = "", max_queries: int = 3, 
+                          university: str = "", program: str = "") -> List[str]:
     """
     根据主题生成多个搜索查询
     
@@ -13,33 +14,53 @@ def generate_search_queries(topic: str, base_url: str = "", max_queries: int = 3
         topic: 待回答的问题/主题
         base_url: 基础网站 URL，用于限定搜索范围
         max_queries: 最大查询数量
+        university: 院校名称
+        program: 专业名称
     
     Returns:
         搜索查询列表
     """
     queries = []
     
-    # 1. 直接使用原始问题
+    # 1. 如果有院校和专业信息，优先使用组合查询
+    if university and program:
+        # 格式：院校 专业 主题
+        queries.append(f"{university} {program} {topic}")
+        
+        # 格式：院校 专业 topic关键词
+        keywords = extract_keywords(topic)
+        if keywords:
+            queries.append(f"{university} {program} {' '.join(keywords)}")
+    
+    # 2. 直接使用原始问题
     queries.append(topic)
     
-    # 2. 提取关键词生成查询
+    # 3. 提取关键词生成查询
     keywords = extract_keywords(topic)
     if keywords:
         queries.append(" ".join(keywords))
     
-    # 3. 如果有基础 URL，添加站点限定搜索
+    # 4. 如果有基础 URL，添加站点限定搜索
     if base_url:
         domain = extract_domain(base_url)
         if domain:
-            site_query = f"site:{domain} {topic}"
-            queries.append(site_query)
-            
-            # 也可以用关键词组合站点限定
-            if keywords:
-                queries.append(f"site:{domain} {' '.join(keywords)}")
+            # 站点限定搜索
+            if university and program:
+                queries.append(f"site:{domain} {university} {program} {topic}")
+            else:
+                queries.append(f"site:{domain} {topic}")
     
-    # 限制查询数量
-    return queries[:max_queries]
+    # 限制查询数量，去重
+    unique_queries = []
+    seen = set()
+    for q in queries:
+        if q and q not in seen:
+            seen.add(q)
+            unique_queries.append(q)
+            if len(unique_queries) >= max_queries:
+                break
+    
+    return unique_queries
 
 
 def extract_keywords(text: str) -> List[str]:
