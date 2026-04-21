@@ -5,62 +5,33 @@ from typing import List, Optional, Set
 from urllib.parse import urlparse
 
 
-def generate_search_queries(topic: str, base_url: str = "", max_queries: int = 3, 
+def generate_search_queries(topic: str, base_url: str = "", max_queries: int = 1, 
                           university: str = "", program: str = "") -> List[str]:
     """
-    根据主题生成多个搜索查询
+    根据主题生成搜索查询（简化为单一精准查询）
     
     Args:
         topic: 待回答的问题/主题
         base_url: 基础网站 URL，用于限定搜索范围
-        max_queries: 最大查询数量
+        max_queries: 最大查询数量（默认1，简化为单一查询）
         university: 院校名称
         program: 专业名称
     
     Returns:
-        搜索查询列表
+        搜索查询列表（通常只有1个）
     """
-    queries = []
-    
-    # 1. 如果有院校和专业信息，优先使用组合查询
+    # 如果有院校和专业信息，生成精准组合查询
     if university and program:
         # 格式：院校 专业 主题
-        queries.append(f"{university} {program} {topic}")
-        
-        # 格式：院校 专业 topic关键词
-        keywords = extract_keywords(topic)
-        if keywords:
-            queries.append(f"{university} {program} {' '.join(keywords)}")
+        query = f"{university} {program} {topic}"
+    elif university:
+        # 只有院校
+        query = f"{university} {topic}"
+    else:
+        # 没有院校信息，直接使用主题
+        query = topic
     
-    # 2. 直接使用原始问题
-    queries.append(topic)
-    
-    # 3. 提取关键词生成查询
-    keywords = extract_keywords(topic)
-    if keywords:
-        queries.append(" ".join(keywords))
-    
-    # 4. 如果有基础 URL，添加站点限定搜索
-    if base_url:
-        domain = extract_domain(base_url)
-        if domain:
-            # 站点限定搜索
-            if university and program:
-                queries.append(f"site:{domain} {university} {program} {topic}")
-            else:
-                queries.append(f"site:{domain} {topic}")
-    
-    # 限制查询数量，去重
-    unique_queries = []
-    seen = set()
-    for q in queries:
-        if q and q not in seen:
-            seen.add(q)
-            unique_queries.append(q)
-            if len(unique_queries) >= max_queries:
-                break
-    
-    return unique_queries
+    return [query] if query else []
 
 
 def extract_keywords(text: str) -> List[str]:

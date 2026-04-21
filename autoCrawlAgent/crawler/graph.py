@@ -698,19 +698,19 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
         all_urls = []
         all_search_results = []
         
-        # 直接使用 search_agent 进行搜索（search_crawler 的 search_and_crawl 可能有问题）
+        # 直接使用 search_agent 进行搜索
         from crawler.search_agent import create_search_agent
         search_agent = create_search_agent()
         
         for topic in topics_to_search:
             try:
-                # 执行搜索
+                # 执行搜索（简化为单一精准查询）
                 search_results = search_agent.search_by_topic(
                     topic=topic,
                     base_url=base_url,
-                    max_queries=3,
-                    max_results=10,
-                    filter_results=True,
+                    max_results=10,  # 每个topic最多返回10个结果
+                    university=base_url,  # 使用base_url提取院校信息（如果有）
+                    program="",  # 暂不使用专业信息
                 )
                 
                 if search_results:
@@ -722,21 +722,20 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
                     # 提取 URLs
                     urls = search_agent.extract_urls(search_results)
                     if urls:
-                        all_urls.extend(urls)
-                        all_search_results.extend(search_results)
+                        all_urls.extend(urls[:3])  # 每个topic最多取前3个URL
+                        all_search_results.extend(search_results[:3])
             except Exception as e:
                 print(f"[AgentCrawler] 主题 '{topic}' 搜索失败: {e}", file=sys.stderr)
                 continue
         
         # 去重 URLs
-        from crawler.search_utils import deduplicate_urls, normalize_url
+        from crawler.search_utils import deduplicate_urls
         unique_urls = deduplicate_urls(all_urls)
         
+        # 选择最相关的 2-3 个 URL
         if unique_urls:
-            # 选择最佳 URL：优先选择与 base_url 同域名的，避免过长的 URL
             base_domain = extract_domain(base_url) if base_url else ""
-            best_url = None
-            best_score = -1
+            url_scores = []
             
             for url in unique_urls:
                 score = 0
@@ -746,35 +745,38 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
                 if url_domain == base_domain:
                     score += 10
                 
-                # URL 长度适中加分
+                # URL 长度适中加分（避免过长或过短的URL）
                 if 20 <= len(url) <= 150:
                     score += 5
                 
-                # 包含某些关键词加分（例如：admission, requirements, program）
-                keywords = ["admission", "requirement", "program", "course", "apply", "degree"]
+                # 包含某些关键词加分
+                keywords = ["admission", "requirement", "program", "course", "apply", "degree", "how", "cost", "scholarship"]
                 for kw in keywords:
                     if kw in url.lower():
                         score += 2
                 
-                if score > best_score:
-                    best_score = score
-                    best_url = url
+                url_scores.append((url, score))
             
-            # 如果没有最佳，用第一个
-            if not best_url:
-                best_url = unique_urls[0]
+            # 按分数排序，选择前3个
+            url_scores.sort(key=lambda x: x[1], reverse=True)
+            best_urls = [url for url, score in url_scores[:3]]
             
-            print(f"[AgentCrawler] 选择搜索结果 URL: {best_url} (分数: {best_score})", file=sys.stderr)
-            
-            # 导航到搜索结果页面
-            try:
-                session.goto(best_url)
-                return {
-                    "nav_route": "snapshot",
-                    "iteration": iteration + 1,
-                }
-            except Exception as e:
-                print(f"[AgentCrawler] 导航到搜索结果失败: {e}", file=sys.stderr)
+            if best_urls:
+                print(f"[AgentCrawler] 选择最相关的 {len(best_urls)} 个搜索结果 URL:", file=sys.stderr)
+                for i, url in enumerate(best_urls, 1):
+                    score = url_scores[i-1][1] if i <= len(url_scores) else 0
+                    print(f"  {i}. {url} (分数: {score})", file=sys.stderr)
+                
+                # 导航到第一个最佳 URL
+                try:
+                    session.goto(best_urls[0])
+                    return {
+                        "nav_route": "snapshot",
+                        "iteration": iteration + 1,
+                        "search_result_urls": best_urls,  # 保存其他URL备用
+                    }
+                except Exception as e:
+                    print(f"[AgentCrawler] 导航到搜索结果失败: {e}", file=sys.stderr)
         
         # 如果没有搜索结果或导航失败，返回 fallthrough
         return {"nav_route": "fallthrough"}

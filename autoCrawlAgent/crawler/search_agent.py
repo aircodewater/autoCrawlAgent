@@ -254,57 +254,52 @@ class SearchAgent:
         self,
         topic: str,
         base_url: str = "",
-        max_queries: int = 3,
         max_results: int = 10,
-        filter_results: bool = True,
         university: str = "",
         program: str = "",
     ) -> List[Dict[str, Any]]:
         """
-        根据主题执行搜索
+        根据主题执行搜索（简化为单一精准查询）
         
         Args:
             topic: 待回答的问题/主题
-            base_url: 基础网站 URL，用于限定搜索范围
-            max_queries: 最大查询数量
-            max_results: 每个查询的最大结果数
-            filter_results: 是否过滤结果
+            base_url: 基础网站 URL（未使用，保留兼容性）
+            max_results: 最大结果数（默认10）
             university: 院校名称
             program: 专业名称
         
         Returns:
             搜索结果列表
         """
-        # 生成搜索查询
-        queries = generate_search_queries(topic, base_url, max_queries, university, program)
+        # 生成搜索查询（简化为单一查询）
+        queries = generate_search_queries(topic, base_url, max_queries=1, university=university, program=program)
         
-        print(f"[SearchAgent] 为主题生成 {len(queries)} 个搜索查询: {queries}", file=sys.stderr)
+        if not queries:
+            print(f"[SearchAgent] 未能为主题生成查询: {topic}", file=sys.stderr)
+            return []
         
-        # 执行所有查询
-        all_results = []
-        for query in queries:
-            results = self._search_engine.search(query, max_results)
-            all_results.append(results)
+        query = queries[0]
+        print(f"[SearchAgent] 搜索查询: {query}", file=sys.stderr)
         
-        # 合并结果
-        merged = self._merge_results(all_results)
+        # 执行搜索（只有一个查询）
+        results = self._search_engine.search(query, max_results)
         
         # 过滤结果
-        if filter_results:
-            base_domain = extract_domain(base_url) if base_url else ""
-            merged = filter_search_results(merged, base_domain)
+        base_domain = extract_domain(base_url) if base_url else ""
+        if base_domain:
+            results = filter_search_results(results, base_domain)
         
         # 排序结果
-        merged = rank_search_results(merged, topic)
+        results = rank_search_results(results, topic)
         
         # 去重
-        merged_urls = deduplicate_urls([r.get("url", "") for r in merged])
+        merged_urls = deduplicate_urls([r.get("url", "") for r in results])
         url_set = set(merged_urls)
-        merged = [r for r in merged if r.get("url", "") in url_set]
+        results = [r for r in results if r.get("url", "") in url_set]
         
-        print(f"[SearchAgent] 搜索完成，返回 {len(merged)} 个结果", file=sys.stderr)
+        print(f"[SearchAgent] 搜索完成，返回 {len(results)} 个结果", file=sys.stderr)
         
-        return merged
+        return results
     
     def _merge_results(self, all_results: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
         """合并多个搜索结果列表"""
