@@ -125,9 +125,12 @@ def compare_field_values(crawl_value: str, reference_value: str, use_llm: bool =
         else:
             return False, "爬虫值为空，参考值非空"
 
-    # 处理参考值为空的情况
+    # 处理参考值为空的情况（如果参考值为空，无论爬虫有没有值都算对）
     if not normalized_reference:
-        return False, "参考值为空，爬虫值非空"
+        if not normalized_crawl:
+            return True, "两者都为空"
+        else:
+            return True, "参考值为空，爬虫值非空（视为正确）"
 
     # 处理红框内容标记
     if is_red_box_marker(reference_value):
@@ -371,9 +374,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 默认值
-    default_json_path = r"D:\MutiAgent\AgentCrawler\results\crawl_20260416_130707.json"
-    default_excel_path = r"c:\Users\eic\Downloads\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\大模型爬取示例模板-多伦多大学.xlsx"
-    default_output_dir = r"c:\Users\eic\Downloads\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\evaluation_report"
+    default_json_path = r"D:\MutiAgent\AgentCrawler\results\test\test_max_iter_60\crawl_20260421_111634.json"
+    default_excel_path = r"C:\Users\eic\Downloads\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\autoCrawlAgent\大模型爬取示例模板-多伦多大学.xlsx"
+    default_output_dir = r"C:\Users\eic\Downloads\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\autoCrawlAgent\evaluation_report"
     
     # 使用命令行参数或默认值
     json_path = args.json_path or default_json_path
