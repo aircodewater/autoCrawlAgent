@@ -7,10 +7,10 @@ import threading
 import sys
 
 # 测试参数设置
-start_iter = 50
+start_iter = 10
 step_iter = 5
 max_target = 63
-max_iter_limit = 61  # 最大--max-iter值
+max_iter_limit = 10  # 最大--max-iter值
 output_dir = r"D:\MutiAgent\AgentCrawler\results\test"
 url = "https://future.utoronto.ca/"
 result_file = "max_iter_test_results.txt"
@@ -38,32 +38,6 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
     print(f"创建输出目录: {output_dir}")
 
-# 清理旧的测试目录
-print("检查并清理旧的测试目录...")
-for item in os.listdir(output_dir):
-    if item.startswith("test_max_iter_"):
-        old_dir = os.path.join(output_dir, item)
-        try:
-            # 检查是否是目录
-            if os.path.isdir(old_dir):
-                # 检查目录中是否有新的测试结果
-                json_files = [f for f in os.listdir(old_dir) if f.endswith('.json')]
-                if json_files:
-                    # 获取最新文件的修改时间
-                    json_files.sort(key=lambda x: os.path.getmtime(os.path.join(old_dir, x)), reverse=True)
-                    latest_file = os.path.join(old_dir, json_files[0])
-                    file_time = os.path.getmtime(latest_file)
-                    current_time = time.time()
-                    # 如果文件超过1小时，删除目录
-                    if current_time - file_time > 3600:
-                        print(f"删除旧测试目录: {old_dir} (超过1小时)")
-                        import shutil
-                        shutil.rmtree(old_dir)
-        except Exception as e:
-            print(f"清理目录 {old_dir} 时出错: {str(e)}")
-
-print("清理完成")
-
 # 清空结果文件（确保只有一次运行的数据）
 with open(result_file, 'w', encoding='utf-8') as f:
     f.write("# --max-iter 测试结果\n")
@@ -88,18 +62,43 @@ def test_single_max_iter(current_iter, url, output_dir, result_file, max_target)
         os.makedirs(test_output_dir)
         print(f"创建测试输出目录: {test_output_dir}")
     
-    # 构建命令
-    command = f'python main.py "{url}" -o "{test_output_dir}" --max-iter={current_iter}'
-    print(f"执行命令: {command}")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    cmd = [
+        sys.executable,
+        "-u",
+        "main.py",
+        url,
+        "-o",
+        test_output_dir,
+        f"--max-iter={current_iter}",
+    ]
+    print(f"执行命令: {' '.join(cmd)}")
     
     try:
-        print("正在执行爬虫...")
-        # 执行爬虫命令
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        print("正在执行爬虫（实时输出；stderr 已合并到 stdout）...")
+        # Windows 子进程 stdout 接管道时默认常用 GBK，父进程若按 UTF-8 解码会乱码
+        child_env = os.environ.copy()
+        child_env.setdefault("PYTHONUTF8", "1")
+        child_env.setdefault("PYTHONIOENCODING", "utf-8")
+        # 勿使用 capture_output=True，否则子进程日志在结束前不可见
+        process = subprocess.Popen(
+            cmd,
+            cwd=script_dir,
+            env=child_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            print(line, end="")
+        return_code = process.wait()
         
-        if result.returncode != 0:
-            print(f"执行失败，返回码: {result.returncode}")
-            print(f"错误输出: {result.stderr[:200]}...")
+        if return_code != 0:
+            print(f"执行失败，返回码: {return_code}")
             return {'max_iter': current_iter, 'non_empty_fields': -1, 'total_fields': -1, 'status': '执行失败'}
         
         print("爬虫执行成功")

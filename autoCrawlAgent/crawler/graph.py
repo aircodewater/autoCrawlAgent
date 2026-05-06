@@ -94,6 +94,16 @@ def _skill_suffix(state: CrawlerState) -> str:
     return "\n\n【附加：领域说明（本地 Skill 文件）】\n" + sk + "\n"
 
 
+def _log_crawler_progress(state: CrawlerState, stage_zh: str) -> None:
+    """运行时进度：iteration 为 0 起计，展示为「第 n 轮」。使用 stdout + flush，便于子进程被管道采集时仍能逐行看到。"""
+    it = int(state.get("iteration") or 0)
+    mx = int(state.get("max_iterations") or 0)
+    print(
+        f"[AgentCrawler] 进度: 第 {it} / {mx} 轮  阶段：{stage_zh}",
+        flush=True,
+    )
+
+
 def _all_topics_non_empty(merged: Dict[str, str], topics: List[str]) -> bool:
     if not topics:
         return True
@@ -318,6 +328,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
         )
 
     def node_load(state: CrawlerState) -> Dict[str, Any]:
+        _log_crawler_progress(state, "加载页面（打开起始 URL）")
         url = state.get("url") or ""
         if not url:
             return {"finish_reason": "缺少 URL", "browser_ready": False}
@@ -326,6 +337,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
         return {"browser_ready": True, "last_error": None}
 
     def node_snapshot(state: CrawlerState) -> Dict[str, Any]:
+        _log_crawler_progress(state, "页面快照（采集可见文本与可交互元素）")
         try:
             session.expand_collapsed_content()
             text = session.visible_text()
@@ -345,6 +357,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
             return {"last_error": str(e), "page_text": "", "interactives": [], "interactive_text": ""}
 
     def node_extract(state: CrawlerState) -> Dict[str, Any]:
+        _log_crawler_progress(state, "信息抽取（LLM 提取/合并 topic 答案）")
         topics: List[str] = state.get("topics") or []
         page_text = state.get("page_text") or ""
         prior: Dict[str, str] = dict(state.get("results") or {})
@@ -530,6 +543,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
 
     def node_nav_dfs(state: CrawlerState) -> Dict[str, Any]:
         """多导航深度优先：缓存父页 origin + 子链接列表，逐个进入子页整合后再回到父级试下一兄弟。"""
+        _log_crawler_progress(state, "站内导航（多链接 DFS 决策）")
         if state.get("finish_reason"):
             return {"nav_route": "done"}
         it = int(state.get("iteration") or 0)
@@ -664,6 +678,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
 
     def node_search(state: CrawlerState) -> Dict[str, Any]:
         """搜索节点：基于待处理主题执行搜索，并返回搜索结果"""
+        _log_crawler_progress(state, "外搜（搜索引擎辅助）")
         if not search_crawler or not search_decision_maker:
             return {"last_error": "搜索功能未启用", "nav_route": "fallthrough"}
         
@@ -782,6 +797,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
         return {"nav_route": "fallthrough"}
 
     def node_plan(state: CrawlerState) -> Dict[str, Any]:
+        _log_crawler_progress(state, "交互规划（选择下一步点击）")
         topics: List[str] = state.get("topics") or []
         pending: List[str] = state.get("pending_topics") or []
         inter_lines = state.get("interactive_text") or ""
@@ -917,6 +933,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
 
     def node_retreat_home(state: CrawlerState) -> Dict[str, Any]:
         """规划返回无有效交互时，回到起始 URL 清空本页点击禁令后重新快照。"""
+        _log_crawler_progress(state, "退回起始页（重试规划）")
         base = (state.get("url") or "").strip()
         if not base:
             return {"finish_reason": "无法退回：缺少起始 URL"}
@@ -950,6 +967,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
         }
 
     def node_click(state: CrawlerState) -> Dict[str, Any]:
+        _log_crawler_progress(state, "执行点击")
         idx = state.get("planned_index")
         items = state.get("interactives") or []
         if idx is None or not isinstance(idx, int):
@@ -1095,6 +1113,12 @@ def run_crawl(
         tlist = list(s.get("topics") or topics)
         prev = dict(s.get("results") or {})
         if tlist and any((prev.get(x) or "").strip() for x in tlist):
+            it_done = int(s.get("iteration") or 0)
+            mx_done = int(s.get("max_iterations") or 0)
+            print(
+                f"[AgentCrawler] 进度: 主图已结束（末轮计数 {it_done}/{mx_done}）· 阶段：LLM 精炼合并结果",
+                flush=True,
+            )
             try:
                 refined = refine_merged_results(
                     tlist,

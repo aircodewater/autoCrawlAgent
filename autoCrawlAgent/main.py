@@ -43,7 +43,19 @@ def load_topics_from_file(path: Path) -> list[str]:
     return out
 
 
+def _configure_stdio_utf8() -> None:
+    """避免 Windows 下 stdout/stderr 接管道时默认 GBK，与父进程按 UTF-8 读子进程输出不一致而乱码。"""
+    if sys.platform != "win32":
+        return
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 def main() -> None:
+    _configure_stdio_utf8()
     load_dotenv()
     parser = argparse.ArgumentParser(
         description="主题驱动智能爬虫（LangGraph；LLM 可选通义 / DeepSeek）"
