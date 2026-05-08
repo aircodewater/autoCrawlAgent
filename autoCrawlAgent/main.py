@@ -1,12 +1,12 @@
 """
 入口：根据 URL 与主题集合运行 LangGraph 多智能体爬虫（ReAct 式规划 + 浏览器交互）。
-LLM：默认阿里云通义（DASHSCOPE_API_KEY）；可选 DeepSeek（LLM_PROVIDER=deepseek + DEEPSEEK_API_KEY）。
+LLM：默认通义；可选 DeepSeek、Kimi/Moonshot（见 .env 与 LLM_PROVIDER）。
 需执行 `playwright install chromium`。
 待回答问题列表从本地文件读取（默认与 main.py 同目录下的 `topic`，每行一条）。
 可选：`--skill` / `--skill-dir` 加载本地 SKILL.md，注入各步 LLM 系统提示。
 导出流程图：`python main.py --export-graph docs/crawler.mmd`（无需 url；PNG 需 pygraphviz）。
 问题与修改记录见 `docs/agentcrawler-issue-log.md`（改 bug 时请追加一条）。
-环境变量：`EXTRACT_TOPIC_BATCH_SIZE`（默认 12）、`LLM_MAX_OUTPUT_TOKENS`（默认 8192）缓解抽取 JSON 截断。
+环境变量：`EXTRACT_TOPIC_BATCH_SIZE`（默认 12）、`LLM_MAX_OUTPUT_TOKENS`（默认 8192）；Kimi k2.5/2.6 快速模式：`KIMI_MODE=instant` 或 `MOONSHOT_THINKING=disabled`。
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -23,8 +24,11 @@ from dotenv import load_dotenv
 from crawler.graph import run_crawl
 from crawler.graph_export import export_crawl_graph
 from crawler.skill_loader import load_skills
+from crawler.url_tree_report import write_url_tree_artifacts
 
 _DEFAULT_TOPIC_FILE = Path(__file__).resolve().parent / "topic"
+# 未指定 -o 时落盘目录（主 JSON、url_tree JSON/HTML）；可用 -o 覆盖
+_DEFAULT_OUTPUT_DIR = r"D:\canada\dsv4pro"
 
 
 def load_topics_from_file(path: Path) -> list[str]:
@@ -95,9 +99,12 @@ def main() -> None:
         "-o",
         "--output",
         type=str,
-        default=None,
+        default=_DEFAULT_OUTPUT_DIR,
         metavar="DIR",
-        help="结果 JSON 的存放目录（不存在则自动创建；每次运行生成带时间戳的文件名）",
+        help=(
+            "结果 JSON / URL 结构树的存放目录（不存在则自动创建）。"
+            f"默认: {_DEFAULT_OUTPUT_DIR}；传空字符串可仅 stdout、不写文件"
+        ),
     )
     parser.add_argument(
         "--include-interactive-text",
@@ -112,10 +119,10 @@ def main() -> None:
     parser.add_argument(
         "--llm",
         type=str,
-        choices=["tongyi", "deepseek"],
+        choices=["tongyi", "deepseek", "kimi"],
         default=None,
         metavar="NAME",
-        help="LLM 基座：tongyi（阿里云通义）或 deepseek；不指定则读环境变量 LLM_PROVIDER（默认 tongyi）",
+        help="LLM 基座：tongyi、deepseek、kimi（Moonshot）；不指定则读 LLM_PROVIDER（默认 tongyi）",
     )
     parser.add_argument(
         "--skill",
@@ -174,6 +181,8 @@ def main() -> None:
         help="搜索阈值（0-1），值越大越倾向于执行搜索（默认 0.5）",
     )
     args = parser.parse_args()
+    if isinstance(args.output, str) and not args.output.strip():
+        args.output = None
     if args.llm:
         os.environ["LLM_PROVIDER"] = args.llm
     
@@ -233,6 +242,8 @@ def main() -> None:
                 file=sys.stderr,
             )
 
+    crawl_started_at = datetime.now().isoformat(timespec="seconds")
+    t_crawl0 = time.perf_counter()
     try:
         out = run_crawl(
             args.url,
@@ -246,17 +257,29 @@ def main() -> None:
             search_threshold=args.search_threshold,
         )
     except Exception as e:
+        elapsed = time.perf_counter() - t_crawl0
+        print(
+            f"[AgentCrawler] 爬取异常退出，耗时 {elapsed:.2f}s（自 run_crawl 起算）",
+            file=sys.stderr,
+        )
         print(json.dumps({"error": str(e)}, ensure_ascii=False), file=sys.stderr)
         raise SystemExit(1) from e
+    crawl_elapsed_s = round(time.perf_counter() - t_crawl0, 3)
+    crawl_finished_at = datetime.now().isoformat(timespec="seconds")
+    print(
+        f"[AgentCrawler] 本次爬取耗时 {crawl_elapsed_s}s（{crawl_started_at} → {crawl_finished_at}）",
+        file=sys.stderr,
+    )
 
     payload = {
         "url": args.url,
         "topic_file": str(topic_path),
-        "topics": topics,
         "skill_injected": bool(skill_text),
         "skill_chars": len(skill_text) if skill_text else 0,
+        "crawl_started_at": crawl_started_at,
+        "crawl_finished_at": crawl_finished_at,
+        "crawl_elapsed_seconds": crawl_elapsed_s,
         "results": out.get("results"),
-        "pending_topics": out.get("pending_topics"),
         "finish_reason": out.get("finish_reason"),
         "iteration": out.get("iteration"),
         "last_error": out.get("last_error"),
@@ -265,6 +288,7 @@ def main() -> None:
         "nav_stack_depth": len(out.get("nav_stack") or []),
         "home_retreat_count": out.get("home_retreat_count", 0),
         "max_home_retreats": out.get("max_home_retreats", 0),
+        "llm_token_usage": out.get("llm_token_usage"),
     }
     if args.output or args.include_interactive_text:
         payload["interactive_text"] = out.get("interactive_text") or ""
@@ -281,10 +305,27 @@ def main() -> None:
             )
             raise SystemExit(1)
         out_dir.mkdir(parents=True, exist_ok=True)
-        name = f"crawl_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        saved = (out_dir / name).resolve()
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        stem = f"crawl_{ts}"
+        saved = (out_dir / f"{stem}.json").resolve()
         saved.write_text(text, encoding="utf-8")
         print(f"结果已保存: {saved}", file=sys.stderr)
+        try:
+            j_tree, h_tree = write_url_tree_artifacts(
+                out_dir=out_dir,
+                stem=stem,
+                start_url=args.url,
+                url_nav_edges=list(out.get("url_nav_edges") or []),
+                url_node_topics=dict(out.get("url_node_topics") or {}),
+                url_display=dict(out.get("url_display") or {}),
+            )
+            print(f"[AgentCrawler] URL 结构树 JSON: {j_tree}", file=sys.stderr)
+            print(f"[AgentCrawler] URL 结构树可视化（用浏览器打开）: {h_tree}", file=sys.stderr)
+        except OSError as e:
+            print(
+                f"[AgentCrawler] 写入 URL 结构树失败（可忽略）: {e}",
+                file=sys.stderr,
+            )
     print(text)
 
 

@@ -1,0 +1,8 @@
+{
+  "natural_language_search": true,
+  "on_site_search": true,
+  "topic_file": "topic_spider_canada.txt",
+  "start_url": "https://future.utoronto.ca/program/accounting#campus-utsg",
+  "output_dir": "D:\\canada\\dsv4pro",
+  "max_iter": 5
+}

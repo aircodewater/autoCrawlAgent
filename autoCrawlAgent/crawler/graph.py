@@ -32,7 +32,9 @@ from crawler.llm_client import (
     InteractionPlan,
     extract_with_schema,
     get_chat_model,
+    get_llm_token_usage,
     refine_merged_results,
+    reset_llm_token_usage,
 )
 from crawler.search_integration import (
     SearchDrivenCrawler,
@@ -158,6 +160,26 @@ def _norm_url(u: str) -> str:
         return f"{scheme}://{netloc}{path}".lower()
     except Exception:
         return (u or "").split("#")[0].lower().rstrip("/")
+
+
+def _merge_url_nav_edge(state: CrawlerState, parent_norm: str, child_raw: str) -> Dict[str, Any]:
+    """记录一次「父页 → 子页」导航边（规范化），并登记子页展示 URL。"""
+    child_norm = _norm_url(child_raw)
+    if not parent_norm or not child_norm or parent_norm == child_norm:
+        return {}
+    out: Dict[str, Any] = {}
+    edges = list(state.get("url_nav_edges") or [])
+    pair = (parent_norm, child_norm)
+    if not any((e.get("parent"), e.get("child")) == pair for e in edges):
+        edges.append({"parent": parent_norm, "child": child_norm})
+        out["url_nav_edges"] = edges
+    disp = dict(state.get("url_display") or {})
+    raw = (child_raw or "").strip()
+    if child_norm and raw:
+        disp[child_norm] = raw
+        if disp != dict(state.get("url_display") or {}):
+            out["url_display"] = disp
+    return out
 
 
 def _merge_visited(state: CrawlerState, *urls: str) -> List[str]:
@@ -519,6 +541,15 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
             else state.get("plan_context_note")
         )
 
+        page_n = _norm_url(session.current_url or state.get("url") or "")
+        raw_u = (session.current_url or "").strip()
+        extract_extra: Dict[str, Any] = {}
+        if page_n and raw_u:
+            disp_e = dict(state.get("url_display") or {})
+            disp_e[page_n] = raw_u
+            if disp_e != dict(state.get("url_display") or {}):
+                extract_extra["url_display"] = disp_e
+
         # 计算当前页面提取到的结果（用于搜索决策）
         current_page_extracted = {}
         prior_results = prior or {}
@@ -529,7 +560,17 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
             elif v and prior_results.get(k, "").strip() != v.strip():
                 # 结果有更新也算
                 current_page_extracted[k] = v
-        
+
+        topic_keys = list(current_page_extracted.keys())
+        if page_n and topic_keys:
+            m = dict(state.get("url_node_topics") or {})
+            cur = list(m.get(page_n) or [])
+            for k in topic_keys:
+                if k not in cur:
+                    cur.append(k)
+            m[page_n] = cur
+            extract_extra["url_node_topics"] = m
+
         return {
             "results": merged,
             "pending_topics": pending,
@@ -539,6 +580,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
             "plan_context_note": plan_context_note_out,
             "last_error": None,
             "current_page_results": current_page_extracted,  # 记录当前页面提取到的结果
+            **extract_extra,
         }
 
     def node_nav_dfs(state: CrawlerState) -> Dict[str, Any]:
@@ -587,11 +629,13 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
                 visited = _merge_visited({"visited_urls": visited}, first_href)
                 return {"nav_stack": nav_stack, "visited_urls": visited, "nav_route": "fallthrough"}
             visited = _merge_visited({"visited_urls": visited}, session.current_url)
+            uextra = _merge_url_nav_edge(state, before_nav, session.current_url or "")
             return {
                 "nav_stack": nav_stack,
                 "visited_urls": visited,
                 "iteration": it + 1,
                 "nav_route": "snapshot",
+                **uextra,
             }
 
         # 无法再分叉：回溯，进入下一兄弟或弹出父层（跳过已访问或与父页相同的链接）
@@ -622,11 +666,13 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
                         continue
                     visited = _merge_visited({"visited_urls": visited}, session.current_url)
                     visited_set = set(visited)
+                    uextra = _merge_url_nav_edge(state, origin_n, session.current_url or "")
                     return {
                         "nav_stack": nav_stack,
                         "visited_urls": visited,
                         "iteration": it + 1,
                         "nav_route": "snapshot",
+                        **uextra,
                     }
                 except Exception as e:
                     nav_stack.pop()
@@ -784,11 +830,14 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
                 
                 # 导航到第一个最佳 URL
                 try:
+                    before_n = _norm_url(session.current_url or "")
                     session.goto(best_urls[0])
+                    uextra = _merge_url_nav_edge(state, before_n, session.current_url or "")
                     return {
                         "nav_route": "snapshot",
                         "iteration": iteration + 1,
                         "search_result_urls": best_urls,  # 保存其他URL备用
+                        **uextra,
                     }
                 except Exception as e:
                     print(f"[AgentCrawler] 导航到搜索结果失败: {e}", file=sys.stderr)
@@ -1019,6 +1068,8 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
                 out["no_nav_signatures"] = nav_sigs
         else:
             out["no_nav_signatures"] = []
+            uu = _merge_url_nav_edge(state, before, session.current_url or "")
+            out.update(uu)
         return out
 
     g = StateGraph(CrawlerState)
@@ -1102,8 +1153,12 @@ def run_crawl(
         "dom_change_hint": None,
         "plan_context_note": None,
         "skill_context": (skill_context or "").strip() or None,
+        "url_nav_edges": [],
+        "url_node_topics": {},
+        "url_display": ({_norm_url(url): url.strip()} if (url or "").strip() else {}),
     }
     try:
+        reset_llm_token_usage()
         get_chat_model()
         out = graph.invoke(init)
     finally:
@@ -1130,6 +1185,23 @@ def run_crawl(
                     print("[AgentCrawler] 已对合并结果做精炼整合", file=sys.stderr)
             except Exception:
                 pass
+    usage = get_llm_token_usage()
+    s["llm_token_usage"] = {
+        **usage,
+        "llm_provider": (os.environ.get("LLM_PROVIDER") or "tongyi").strip().lower(),
+        "usage_note": (
+            "由本次爬取内各次结构化 LLM 调用（抽取/规划/探索判断/精炼等）返回的 usage 累加；"
+            "若基座未返回 token 字段则可能为 0。"
+        ),
+    }
+    if int(usage.get("llm_calls") or 0) > 0:
+        print(
+            f"[AgentCrawler] LLM token 累计: calls={usage.get('llm_calls', 0)} "
+            f"prompt={usage.get('prompt_tokens', 0)} "
+            f"completion={usage.get('completion_tokens', 0)} "
+            f"total={usage.get('total_tokens', 0)}",
+            file=sys.stderr,
+        )
     return s
 
 

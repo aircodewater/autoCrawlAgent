@@ -7,10 +7,10 @@ import threading
 import sys
 
 # 测试参数设置
-start_iter = 10
+start_iter = 30
 step_iter = 5
 max_target = 63
-max_iter_limit = 10  # 最大--max-iter值
+max_iter_limit = 30  # 最大--max-iter值
 output_dir = r"D:\MutiAgent\AgentCrawler\results\test"
 url = "https://future.utoronto.ca/"
 result_file = "max_iter_test_results.txt"
@@ -105,21 +105,30 @@ def test_single_max_iter(current_iter, url, output_dir, result_file, max_target)
         # 等待5秒，确保文件写入完成
         time.sleep(5)
         
-        # 查找最新的JSON文件
+        # 查找主爬取结果 JSON（勿用 *_url_tree.json：无 results，会导致统计全 0）
         print("查找JSON结果文件...")
         try:
-            json_files = [f for f in os.listdir(test_output_dir) if f.endswith('.json')]
+            all_json = [f for f in os.listdir(test_output_dir) if f.endswith(".json")]
         except Exception as e:
             print(f"读取目录失败: {str(e)}")
             return {'max_iter': current_iter, 'non_empty_fields': -1, 'total_fields': -1, 'status': '读取目录失败'}
         
+        json_files = [
+            f for f in all_json
+            if not f.endswith("_url_tree.json")
+        ]
+        crawl_main = [f for f in json_files if f.startswith("crawl_")]
+        if crawl_main:
+            json_files = crawl_main
+        if not json_files:
+            json_files = all_json
         if not json_files:
             print("错误: 未找到JSON结果文件")
             return {'max_iter': current_iter, 'non_empty_fields': -1, 'total_fields': -1, 'status': '未找到JSON文件'}
         
         json_files.sort(key=lambda x: os.path.getmtime(os.path.join(test_output_dir, x)), reverse=True)
         latest_json = os.path.join(test_output_dir, json_files[0])
-        print(f"最新的JSON文件: {latest_json}")
+        print(f"用于统计的JSON文件: {latest_json}")
         
         # 分析结果
         print("分析结果...")
@@ -130,8 +139,21 @@ def test_single_max_iter(current_iter, url, output_dir, result_file, max_target)
             print(f"读取JSON文件失败: {str(e)}")
             return {'max_iter': current_iter, 'non_empty_fields': -1, 'total_fields': -1, 'status': '读取JSON失败'}
             
-        results_dict = data.get('results', {})
-        non_empty_fields = sum(1 for v in results_dict.values() if v)
+        sc = data.get("spider_canada")
+        if isinstance(sc, dict) and sc:
+            results_dict = sc
+        else:
+            results_dict = data.get("results")
+        if not isinstance(results_dict, dict):
+            results_dict = {}
+        def _filled(v):
+            if v is None:
+                return False
+            if isinstance(v, str):
+                return bool(v.strip())
+            return bool(v)
+
+        non_empty_fields = sum(1 for v in results_dict.values() if _filled(v))
         total_fields = len(results_dict)
         
         print(f"总字段数: {total_fields}")
@@ -182,12 +204,12 @@ if any(val > max_iter_limit for val in test_values):
 
 # 使用线程池并行测试（根据CPU核心数设置合理的线程数）
 cpu_count = os.cpu_count() or 4
-max_workers = min(max(1, min(1, cpu_count)), len(test_values))  # 最多10个线程，但不超过CPU核心数和测试值数量
+max_workers = min(max(2, min(2, cpu_count)), len(test_values))  # 最多10个线程，但不超过CPU核心数和测试值数量
 print(f"CPU核心数: {cpu_count}")
 print(f"最大线程数: {max_workers}")
 
 # 批处理参数设置
-batch_size = 1  # 每批次执行的任务数
+batch_size = 2  # 每批次执行的任务数
 print(f"批处理设置: 每批次 {batch_size} 个任务")
 
 # 分组处理

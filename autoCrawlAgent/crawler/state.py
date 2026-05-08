@@ -50,3 +50,9 @@ class CrawlerState(TypedDict, total=False):
     # 规划判定无可用交互时退回起始 URL 的次数上限与计数
     max_home_retreats: int
     home_retreat_count: int
+    # URL 导航树：父子边（规范化 URL）、各页首次贡献的 topic、展示用 URL
+    url_nav_edges: List[Dict[str, str]]
+    url_node_topics: Dict[str, List[str]]
+    url_display: Dict[str, str]
+    # 单次 run_crawl 结束写入：LLM token 累加等
+    llm_token_usage: Dict[str, Any]
