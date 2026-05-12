@@ -168,7 +168,7 @@ class BrowserSession:
     def goto(self, url: str) -> None:
         self.start()
         assert self.page is not None
-        self.page.goto(url, wait_until="domcontentloaded")
+        self.page.goto(url, wait_until="domcontentloaded", timeout=60_000)
         self.current_url = self.page.url
         extra = ""
         if self.current_url.rstrip("/") != url.rstrip("/"):
@@ -238,7 +238,7 @@ class BrowserSession:
                     round_clicks += 1
                     total_btn += 1
                     try:
-                        self.page.wait_for_timeout(160)
+                        self.page.wait_for_timeout(100)
                     except Exception:
                         pass
                 except Exception:
@@ -252,7 +252,7 @@ class BrowserSession:
                 file=sys.stderr,
             )
         try:
-            self.page.wait_for_timeout(200)
+            self.page.wait_for_timeout(150)
         except Exception:
             pass
 
@@ -502,7 +502,7 @@ class BrowserSession:
             raise
 
         try:
-            self.page.wait_for_timeout(220)
+            self.page.wait_for_timeout(150)
         except Exception:
             pass
 
@@ -624,7 +624,7 @@ class BrowserSession:
             same_page = self.current_url == url_start
         if same_page:
             try:
-                self.page.wait_for_timeout(700)
+                self.page.wait_for_timeout(400)
             except Exception:
                 pass
         else:

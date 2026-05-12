@@ -51,7 +51,7 @@ def _extract_topic_batch_size() -> int:
         n = int(os.environ.get("EXTRACT_TOPIC_BATCH_SIZE", "12"))
     except ValueError:
         n = 12
-    return max(4, min(n, 40))
+    return max(4, min(n, 100))
 
 
 def _merge_two_payloads(a: ExtractionPayload, b: ExtractionPayload) -> ExtractionPayload:
@@ -79,10 +79,14 @@ def _extract_batch_recursive(
     )
     try:
         return extract_with_schema(sys_extract, user, ExtractionPayload)
-    except Exception:
+    except Exception as e:
         if len(batch) <= 1:
             raise
         mid = max(1, len(batch) // 2)
+        print(
+            f"[AgentCrawler] 批次拆分: 原批次 {len(batch)} 个 topic 解析失败，拆分为 {mid} + {len(batch)-mid}",
+            file=sys.stderr,
+        )
         left = _extract_batch_recursive(sys_extract, batch[:mid], page_text, prior_json)
         right = _extract_batch_recursive(sys_extract, batch[mid:], page_text, prior_json)
         return _merge_two_payloads(left, right)

@@ -374,7 +374,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 默认值
-    default_json_path = r"D:\MutiAgent\AgentCrawler\results\test\test_max_iter_30\crawl_20260506_213920.json"
+    default_json_path = r"D:\MutiAgent\AgentCrawler\results\test\test_max_iter_35\crawl_20260509_184546.json"
     default_excel_path = r"C:\Users\eic\Downloads\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\autoCrawlAgent\大模型爬取示例模板-多伦多大学.xlsx"
     default_output_dir = r"C:\Users\eic\Downloads\autoCrawlAgent-main-c284b84a67c538a92cba4f668a7de06925f12755\autoCrawlAgent\evaluation_report"
     

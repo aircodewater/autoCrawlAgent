@@ -7,10 +7,10 @@ import threading
 import sys
 
 # 测试参数设置
-start_iter = 30
+start_iter = 5
 step_iter = 5
 max_target = 63
-max_iter_limit = 30  # 最大--max-iter值
+max_iter_limit = 5 # 最大--max-iter值
 output_dir = r"D:\MutiAgent\AgentCrawler\results\test"
 url = "https://future.utoronto.ca/"
 result_file = "max_iter_test_results.txt"

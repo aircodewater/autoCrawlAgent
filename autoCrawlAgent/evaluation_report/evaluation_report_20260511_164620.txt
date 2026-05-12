@@ -1,0 +1,369 @@
+
+================================================================================
+爬虫结果评估报告 - 2026-05-11 16:46:20
+================================================================================
+
+总字段数: 65
+匹配字段数: 48
+不匹配字段数: 17
+爬虫值为空的字段数: 19
+参考值为空的字段数: 18
+准确率: 73.85%
+
+--------------------------------------------------------------------------------
+字段详情:
+--------------------------------------------------------------------------------
+✗ 专业链接
+   爬虫值: (空)
+   参考值: https://www.artsci.utoronto.ca/future/ready-apply/admission-categories/computer-science
+   原因: 爬虫值为空，参考值非空
+
+✓ 专业名称
+   爬虫值: Accounting, Accounting (Rotman Commerce), Accounting + Master of Accounting & Finance, Actuarial Sci...
+   参考值: HBSc in Computer Science
+   原因: 关键词匹配（匹配3/3个关键词）
+
+✓ 学位名称
+   爬虫值: BBA, BCom, BASc, HBSc, HBA, HBSc + HSC, MusBac, MusBacPerf, BBA + MAccFin, BBA + HBSc, BASc in Engin...
+   参考值: HBSc
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✓ 专业代码
+   爬虫值: TME（UTM Accounting）、TSM（UTSC Accounting / Accounting + Master of Accounting & Finance）、TAC（UTSG Acco...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✓ 专业所在校区
+   爬虫值: Mississauga (UTM), Scarborough (UTSC), St. George (UTSG), Mississauga campus（UTM密西沙加校区）、Scarborough ...
+   参考值: St. George: UTSG
+   原因: 关键词匹配（匹配1/2个关键词）
+
+✓ 专业小方向
+   爬虫值: Specialist, Major, Minor, Specialist（专业深化方向）
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✓ 学院名称
+   爬虫值: Faculty of Arts & Science（文理学院，St. George校区）；UTM和UTSC校区未明确列出具体学院名称
+   参考值: Faculty of Arts & Science
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✗ 专业介绍
+   爬虫值: (空)
+   参考值: Despite the name, Computer Science is not really a science of computers at all. Computers are quite ...
+   原因: 爬虫值为空，参考值非空
+
+✓ 学习模式（全日制/非全日制/线上）
+   爬虫值: FULL-TIME STUDIES（全日制学习）、PART-TIME STUDIES（非全日制学习，含Summer和Fall session）、NON-DEGREE（非学位学习，含Summer和Fal...
+   参考值: Full-time
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✗ 学制（时长）
+   爬虫值: (空)
+   参考值: 4 years
+   原因: 爬虫值为空，参考值非空
+
+✗ 学费
+   爬虫值: 学费金额取决于专业、学习年份、课程负荷和校区，通常在春季最终确定，可参考上一年金额。总费用包括学费及杂费（incidental fees涵盖学生社团、校园服务、体育娱乐设施、健康及牙科保险；ancil...
+   参考值: Year 1 $62,950
+   原因: 大模型评估：爬虫值提供的是学费金额的动态影响因素（专业、年份、课程负荷、校区等）、费用构成说明（学费、杂费、附加费）及查询时间与途径，属于描述性、非具体数值信息；而参考值为一个具体的首年总费用数值（$62,950），未注明是否含杂费/附加费、校区、专业等关键限定条件，且缺乏上下文对应关系（如是否为国际生、是否含保险等）。二者在信息类型（定性描述 vs 定量数值）、粒度（多维变量说明 vs 单一标量）、可比性（无共同锚点如专业/校区/学年定义）上均不匹配。
+
+✓ 是否有带薪实习
+   爬虫值: 是。三个校区Accounting专业均标注"Work-integrated learning option available"：UTSC校区Accounting（BBA Specialist）和Ac...
+   参考值: 可选
+   原因: 大模型评估：爬虫值明确指出三个校区的Accounting专业均标注'Work-integrated learning option available'，即带薪实习选项可选；'是'是对该选项存在性的肯定回答，与参考值'可选'语义一致，均表示该选项存在且学生可选择参与，因此匹配。
+
+✓ OSSD成绩要求
+   爬虫值: Ontario Secondary School Diploma (OSSD)，六门4U/M科目含English，co-op部分不用于录取。必修：English (ENG4U/EAE4U)、Calcu...
+   参考值: 学历背景要求：
+Ontario High School: General Admission Requirements
+Ontario Secondary School Diploma (OSSD)
+...
+   原因: 数值匹配（匹配1个数字）
+
+✓ 美高成绩要求
+   爬虫值: 认可的美国高中文凭，Senior Year/Grade 12高GPA，修读最高难度的先修课程。先修课包括Senior Year/Grade 12或AP/IB级别的英语；数学、科学、计算机科学和商科项目...
+   参考值: 学历背景要求：
+U.S. High School：General Admission Requirements
+Senior Year/Grade 12 in an accredited high s...
+   原因: 数值匹配（匹配3个数字）
+
+✓ A level成绩要求
+   爬虫值: 五门不同IGCSE/GCSE/Ordinary Level学术科目 + 三门不同A Level/International A Level学术科目；四门AS可替代三门A Level（多数项目）。英语I...
+   参考值: 学历背景要求：
+British-Patterned: General Admission Requirements
+At least five different IGCSE or GCSE or O...
+   原因: 部分内容匹配
+
+✓ IB成绩要求
+   爬虫值: International Baccalaureate Diploma，英语HL或SL，先修课Standard或Higher Level。满足微积分和高等函数的IB数学：Mathematics: Ap...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✗ 入学要求
+   爬虫值: OSSD：六门4U/M科目含English，co-op不计入录取。校区差异：Mississauga/Scarborough需ENG4U/EAE4U、MHF4U、MCV4U；St. George（Rot...
+   参考值: D15+D16+D17+D20+D23
+   原因: 大模型评估：爬虫值详细描述了OSSD课程录取要求，包括具体科目（如ENG4U、MHF4U、MCV4U）、校区差异、补充申请要求、英语课程强制性、有条件录取依据及材料截止要求等，属于结构化招生政策文本；而参考值'D15+D16+D17+D20+D23'为无上下文的字段编码组合，未体现任何课程名称、条件或逻辑关系，无法对应到爬虫值中的任何具体要求或条款，二者在内容类型、语义层级和信息维度上均不匹配。
+
+✓ 先修课程要求
+   爬虫值: English (ENG4U/EAE4U)所有校区必修；Advanced Functions (MHF4U) Mississauga/Scarborough必修；Calculus & Vectors ...
+   参考值: OSSD:
+Required High School Courses:
+English (ENG4U),Calculus (MCV4U)
+
+Recommended Range for Required...
+   原因: 数值匹配（匹配1个数字）
+
+✓ 学术要求
+   爬虫值: OSSD：六门4U/M含English，co-op不计入。有条件录取基于上一年成绩及期中成绩。竞争性申请者须在最高难度修读先修课。最低要求因课程体系而异：OSSD（六门4U/M）、美国高中（高GPA、...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✓ 完整入学要求
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✗ 中国学生入学要求描述
+   爬虫值: (空)
+   参考值: 学历背景要求：
+China: Minimum Admission Requirements:
+Accredited* Senior High School (Upper Middle School) ...
+   原因: 爬虫值为空，参考值非空
+
+✓ 是否需要工作经验
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 是否接受转专业
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 开学日期
+   爬虫值: Summer session 5月开始，Fall session 9月开始。2026入学主要截止日期：Applied Science & Engineering 1月15日；Architecture,...
+   参考值: 2026-09
+   原因: 数值匹配（匹配1个数字）
+
+✓ 申请轮次
+   爬虫值: Early consideration：11月7日前提交申请、12月2日前完成所有步骤，可获首轮考虑并纳入后续轮次。录取决定1月起发布至5月下旬，部分项目可能夏季发布。
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✗ 申请开始日期
+   爬虫值: 申请通常9月下旬开放，大学申请流程于计划入学前一年秋季开始。
+   参考值: 2025-09-18
+   原因: 大模型评估：爬虫值描述的是申请开放的时间规律（通常9月下旬，且为计划入学前一年秋季），属于相对时间表述；参考值是具体的日期（2025-09-18），属于绝对时间点。二者类型不一致，且参考值无法直接对应到‘计划入学前一年秋季’这一相对时序框架中（缺少入学年份信息），因此不构成有效匹配。
+
+✓ 申请截止日期
+   爬虫值: 2026入学：Applied Science & Engineering 1月15日（建议早申11月7日）；Architecture, Landscape, and Design（含IFP）延至2月2...
+   参考值: Early Application Deadline：2025-11-07
+
+Regular Deadline：2026-02-02
+   原因: 数值匹配（匹配2个数字）
+
+✓ 雅思成绩要求
+   爬虫值: 总分6.5，单项不低于6.0。接受IELTS (Academic) for UKVI。不接受IELTS Indicator或IELTS One Skill Retake，须单次考试达到。
+   参考值: 总分：6.5，细分项：6.0
+   原因: 数值匹配（匹配2个数字）
+
+✓ 托福成绩要求（旧）
+   爬虫值: 2026年1月21日前考试：总分89，Speaking和Writing各22。须单次考试达到，不接受TOEFL MyBest（拼分）。不接受TOEFL Essentials、TOEFL ITP或TOE...
+   参考值: 总分：89，口语：22，写作：22，其他：-
+   原因: 数值匹配（匹配2个数字）
+
+✓ 托福成绩要求（新）
+   爬虫值: 2026年1月21日及之后考试：总分4.5，Writing 4.5，Speaking 4.0。须单次考试达到，不接受TOEFL MyBest（拼分）。不接受TOEFL Essentials、TOEFL...
+   参考值: 总分：4.5，口语：4.0，写作：4.5，其他：-
+   原因: 数值匹配（匹配2个数字）
+
+✓ PTE成绩要求
+   爬虫值: 总分65，单项不低于60。接受PTE (Academic) UKVI。
+   参考值: 总分：65，细分项：60
+   原因: 数值匹配（匹配2个数字）
+
+✓ 多邻国成绩要求
+   爬虫值: 2024年7月1日及之后考试：总分120，Production 120；此前考试：总分120，单项不低于100。
+   参考值: 总分：120，输出能力（Production）细分项：120
+   原因: 数值匹配（匹配1个数字）
+
+✓ 免语言要求的条件
+   爬虫值: 符合以下条件可申请豁免：（1）在加拿大学校完成/正在完成四年及以上全日制英语学习；（2）在英语为主要语言国家的英语学校完成/正在完成四年及以上全日制学习；（3）母语为法语且在加拿大学校完成四年及以上全...
+   参考值: Exemptions from our English language requirement
+You may qualify for an exemption from the English f...
+   原因: 部分内容匹配
+
+✓ 申请时是否需要语言成绩
+   爬虫值: 英语非母语（非儿时家庭第一语言）者须提交英语能力证明，除非符合豁免条件。成绩须尽快发送，最迟不晚于支持文件截止日期。可提交所有可用成绩，不合格成绩不会导致处罚。
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✓ GRE成绩要求
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ GMAT成绩要求
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 课程结构
+   爬虫值: 本科学位采用Program Type体系：Specialist（专业深化，最高专注度）、Major（主修）、Minor（辅修）。学生可组合构建学位，如一个Specialist、两个Major，或一个M...
+   参考值: Completion Requirements:
+(12.0 credits, including at least 1.5 credits at the 400-level)
+
+First year...
+   原因: 部分内容匹配
+
+✓ 是否直接合作
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 合作机构
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 申请专业个数限制
+   爬虫值: 每申请周期最多申请三个不同项目或校区，但每个项目领域仅限一份申请。同一学院（如Arts & Science内两个项目）或同一校区（如UTM两个项目）不可重复申请。仅可提交一种申请类型（OUAC Und...
+   参考值: We offer flexibility when it comes to your program choices. You can apply to up to three different p...
+   原因: 部分内容匹配
+
+✓ 是否有简历要求
+   爬虫值: 否。大多数专业不需要简历。
+   参考值: 无
+   原因: 大模型评估：爬虫值'否。大多数专业不需要简历。'表明该岗位或场景下简历非必需，与参考值'无'在语义上一致，均表达'不存在/不需提供简历'的含义，属于合理等价表述。
+
+✗ 简历要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 是否有个人陈述要求
+   爬虫值: 大多数专业否；部分专业需补充申请，可能包含个人陈述类材料。如St. George校区Kinesiology要求Statement of Interest；其他专业可能要求short-answer/es...
+   参考值: 无
+   原因: 大模型评估：爬虫值提供了详细、具体的补充申请要求信息，包括不同专业（如Kinesiology）所需的材料类型（Statement of Interest、short-answer/essay questions、personal profile、video response）及发放时机（主申请提交后），而参考值为'无'，即完全缺失对应信息，二者在内容存在性、详细程度和实质性上均不匹配。
+
+✓ 个人陈述要求
+   爬虫值: 大多数专业无统一要求，仅需学术成绩。部分专业补充申请形式各异：Kinesiology要求Statement of Interest；其他可能要求short-answer/essay questions...
+   参考值: 无
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✓ 是否推荐信要求
+   爬虫值: 否。大多数专业不需要推荐信。
+   参考值: 无
+   原因: 大模型评估：爬虫值'否。大多数专业不需要推荐信。'表明该条目下推荐信要求为'无'或不适用，与参考值'无'在语义上一致，均表示无需提供推荐信，因此匹配。
+
+✓ 推荐信要求
+   爬虫值: 大多数专业不需要。部分专业可能通过补充申请要求其他材料。
+   参考值: 无
+   原因: 大模型评估：爬虫值表达的是‘大多数专业不需要，部分专业可能有额外要求’，这与参考值‘无’在语义上一致，即整体上默认无需额外材料，‘无’可理解为普遍情况下的默认状态，二者不存在矛盾，且参考值未提供否定性或冲突性信息，因此视为匹配。
+
+✗ 是否作品集要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 作品集要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✗ 是否面试
+   爬虫值: 部分专业需要。Mississauga校区Theatre & Drama Studies需Audition（试演）；Faculty of Music所有专业需Music Questionnaire an...
+   参考值: 无
+   原因: 大模型评估：爬虫值提供了具体的入学要求信息，包括Mississauga校区Theatre & Drama Studies专业需试演，以及Faculty of Music所有专业需音乐问卷和试演；而参考值为'无'，即完全缺失对应信息，二者在内容上不一致，无法构成匹配。
+
+✓ 面试要求
+   爬虫值: 无统一要求，因专业而异：Theatre & Drama Studies需试演；Music programs需音乐问卷和试演；部分专业可能要求video response作为补充申请。大多数专业不需要面...
+   参考值: 无
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✓ 是否竞赛/活动要求
+   爬虫值: 否。大多数专业不需要。
+   参考值: 无
+   原因: 大模型评估：爬虫值'否。大多数专业不需要。'表明该字段不适用或无需爬取，与参考值'无'在语义上一致，均表达缺失、不适用或不存在的状态，属于合理等价表达。
+
+✗ 竞赛/活动要求
+   爬虫值: (空)
+   参考值: 无
+   原因: 爬虫值为空，参考值非空
+
+✓ 其他特殊要求
+   爬虫值: Scarborough校区Accounting（BBA Specialist, OUAC代码TSM）和Accounting + Master of Accounting & Finance（BBA +...
+   参考值: Supplemental Application for Computer Science Admission Category
+The supplemental application will b...
+   原因: 部分内容匹配
+
+✓ 申请方式
+   爬虫值: 两步流程：（1）通过OUAC提交申请；（2）在Join U of T或Engineering Applicant Portal完成后续步骤。三种途径：（1）OUAC Undergraduate App...
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✓ 申请链接
+   爬虫值: OUAC官网：https://www.ouac.on.ca/；University of Toronto International Application：https://future.utoron...
+   参考值: https://www.ouac.on.ca/apply/dashboard/en_CA/user/login
+   原因: 部分内容匹配
+
+✓ 是否需要邮寄学术材料
+   爬虫值: 否。优先通过学校或考试机构直接电子提交；不可电子提交时可在申请人门户网站手动上传。不接受电子邮件提交。录取过程中任何时候可能要求签发机构直接发送的官方成绩单，且最终确定录取时必需。
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✓ 是否有申请费
+   爬虫值: 是。费用不可退还，因途径而异。
+   参考值: 是
+   原因: 子字符串匹配(参考值在爬虫值中)
+
+✗ 申请费金额
+   爬虫值: OUAC Undergraduate Application：$156（含3个选择），额外选择$11；University of Toronto International Application：$...
+   参考值: CAD 331.5
+   原因: 大模型评估：爬虫值列出多个不同申请类型的费用（$156、$11、$192、$96），均为加元（CAD），但无一项等于参考值CAD 331.5；且331.5无法由所列费用通过合理组合（如156+192=348，156+96+96=348，192+96=288等）得出，亦无说明该金额对应何种申请场景或是否含税/附加费，因此不匹配。
+
+✗ 申请费支付方式
+及注意事项
+   爬虫值: (空)
+   参考值: You can use Flywire to make payments from within and outside of Canada.
+To pay:
+Access Flywire's sec...
+   原因: 爬虫值为空，参考值非空
+
+✓ 申请邮件是否只发学生邮箱
+   爬虫值: 内部转学申请人使用ACORN系统中的电子邮件地址，可更改或联系注册办公室。其他申请人主要通过申请中提供的电子邮件沟通，建议使用个人邮箱（学校邮箱毕业后可能失效），也可能向邮寄地址发送邮件。
+   参考值: (空)
+   原因: 参考值为空，爬虫值非空（视为正确）
+
+✓ 语言成绩送分Code
+   爬虫值: TOEFL：0982-00；SAT/AP：0982；ACT：5366。IELTS无需机构代码，通过考试中心电子发送至University of Toronto - Undergraduate and ...
+   参考值: 托福：0982-00
+   原因: 数值匹配（匹配2个数字）
+
+✗ 主课和预科/语言课程的关联
+   爬虫值: 提及Pathway programs（衔接、过渡和文凭转学位课程），面向非传统高等教育路径学生，包括非学位学生、访问学生、成年学生及衔接课程，但未提供预科/语言课程与主课的具体关联细节、条件或流程。
+   参考值: International Foundation Program
+Location: St. GeorgeDuration:
+Fall session: 8 months;
+Summer sessio...
+   原因: 大模型评估：爬虫值泛指广义的Pathway programs（衔接、过渡和文凭转学位课程），面向非传统学生群体，但未明确提及任何具体项目名称、结构（如时长、学期安排）、地点或针对国际高中生的学术准入要求；而参考值特指‘International Foundation Program’，具有明确名称、地点（St. George）、具体时长（Fall 8个月/Summer 8周）及精准的申请资格（国际高中毕业生且满足特定学院学术要求）。二者在项目具体性、目标人群（非传统成人/访问学生 vs 国际高中毕业生）、课程定位（宽泛过渡路径 vs 明确预科基础课程）及关键细节（无关联流程 vs 具备完整结构与条件）上均不一致，缺乏实质匹配依据。
+
+✗ 语言课申请截止日期
+   爬虫值: (空)
+   参考值: International Foundation Program：Early
+Consideration
+Deadline：2025-11-07
+Regular
+Deadline：2026-02-02...
+   原因: 爬虫值为空，参考值非空
+
+✓ 是否需要WES认证
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
+
+✓ 是否需要ATAS
+   爬虫值: (空)
+   参考值: (空)
+   原因: 两者都为空
