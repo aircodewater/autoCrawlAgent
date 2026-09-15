@@ -1,4 +1,4 @@
-"""加载本地 Cursor Skill（Markdown），供爬虫 LLM 注入系统提示。"""
+"""加载本地 Markdown 领域说明文件，供爬虫 LLM 注入系统提示。"""
 
 from __future__ import annotations
 

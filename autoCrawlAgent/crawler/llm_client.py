@@ -445,7 +445,7 @@ def refine_merged_results(
     skill_block = ""
     if sk:
         skill_block = (
-            "\n\n【附加：领域说明（本地 Skill，精炼时请遵守其中的字段与格式约束）】\n"
+            "\n\n【附加：领域说明（本地 Markdown，精炼时请遵守其中的字段与格式约束）】\n"
             f"{sk}\n"
         )
     sys_m = (

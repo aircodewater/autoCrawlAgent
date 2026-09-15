@@ -4,6 +4,8 @@
 
 基于 [LangGraph](https://github.com/langchain-ai/langgraph) 构建，采用 ReAct 式 **加载 → 快照 → 抽取 → 规划 → 点击** 循环；支持通义千问、DeepSeek、Kimi 等大模型基座。
 
+> 项目源码位于 [`autoCrawlAgent/`](autoCrawlAgent/) 目录。
+
 ---
 
 ## 特性
@@ -29,7 +31,7 @@ playwright install chromium
 
 ### 2. 配置 API Key
 
-在项目目录创建 `.env` 文件：
+在 `autoCrawlAgent/` 目录创建 `.env` 文件：
 
 ```env
 # 默认使用通义千问
@@ -46,7 +48,7 @@ TONGYI_MODEL=qwen-plus
 
 ### 3. 准备 topic 文件
 
-默认读取同目录下的 `topic` 文件，每行一条待回答问题，`#` 开头为注释：
+默认读取 `autoCrawlAgent/topic` 文件，每行一条待回答问题，`#` 开头为注释：
 
 ```text
 # 多伦多大学 Computer Science 专业
@@ -57,6 +59,7 @@ TONGYI_MODEL=qwen-plus
 ### 4. 运行爬虫
 
 ```bash
+cd autoCrawlAgent
 python main.py "https://future.utoronto.ca/" -o ./results --max-iter 30
 ```
 
@@ -81,13 +84,13 @@ python main.py "https://future.utoronto.ca/" -o ./results --max-iter 30
 | `--export-graph FILE` | 导出 LangGraph 流程图（`.mmd` / `.png` / `.txt`） |
 | `--skill PATH` | 注入本地 Markdown 领域说明到 LLM 系统提示 |
 
-更多说明见 [`instruct.md`](instruct.md)。
+更多说明见 [`autoCrawlAgent/instruct.md`](autoCrawlAgent/instruct.md)。
 
 ---
 
 ## 运行配置
 
-可在项目根目录放置 `crawl_runtime.json` 作为默认参数（可用 `--no-runtime-config` 禁用）：
+可在 `autoCrawlAgent/crawl_runtime.json` 放置默认参数（可用 `--no-runtime-config` 禁用）：
 
 ```json
 {
@@ -128,27 +131,29 @@ START → load → snapshot → extract → nav_dfs
 - **plan**：LLM 选择下一步点击目标（ReAct 规划）
 - **nav_dfs**：多链接站内深度优先导航
 
-流程图源文件：[`docs/crawler_graph.mmd`](docs/crawler_graph.mmd)，可用 [Mermaid Live](https://mermaid.live) 预览。
+流程图源文件：[`autoCrawlAgent/docs/crawler_graph.mmd`](autoCrawlAgent/docs/crawler_graph.mmd)，可用 [Mermaid Live](https://mermaid.live) 预览。
 
 ---
 
 ## 项目结构
 
 ```
-autoCrawlAgent/
-├── main.py              # CLI 入口
-├── topic                # 默认待回答问题列表
-├── crawl_runtime.json   # 可选运行配置
-├── requirements.txt
-├── crawler/
-│   ├── graph.py         # LangGraph 状态图与核心节点
-│   ├── state.py         # 图状态定义
-│   ├── browser_session.py
-│   ├── llm_client.py    # LLM 调用与结构化输出
-│   ├── search_agent.py  # 搜索引擎客户端
-│   └── post_crawl_search.py
-├── docs/                # 流程图、问题记录
-└── evaluator.py         # 爬取结果评估（独立脚本）
+.
+├── README.md
+└── autoCrawlAgent/
+    ├── main.py              # CLI 入口
+    ├── topic                # 默认待回答问题列表
+    ├── crawl_runtime.json   # 可选运行配置
+    ├── requirements.txt
+    ├── crawler/
+    │   ├── graph.py         # LangGraph 状态图与核心节点
+    │   ├── state.py         # 图状态定义
+    │   ├── browser_session.py
+    │   ├── llm_client.py    # LLM 调用与结构化输出
+    │   ├── search_agent.py  # 搜索引擎客户端
+    │   └── post_crawl_search.py
+    ├── docs/                # 流程图、问题记录
+    └── evaluator.py         # 爬取结果评估（独立脚本）
 ```
 
 ---

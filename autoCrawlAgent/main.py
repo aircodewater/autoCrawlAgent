@@ -3,7 +3,7 @@
 LLM：默认通义；可选 DeepSeek、Kimi/Moonshot（见 .env 与 LLM_PROVIDER）。
 需执行 `playwright install chromium`。
 待回答问题列表从本地文件读取（默认与 main.py 同目录下的 `topic`，每行一条）。
-可选：`--skill` / `--skill-dir` 加载本地 SKILL.md，注入各步 LLM 系统提示。
+可选：`--skill` / `--skill-dir` 加载本地 Markdown 领域说明，注入各步 LLM 系统提示。
 导出流程图：`python main.py --export-graph docs/crawler.mmd`（无需 url；PNG 需 pygraphviz）。
 问题与修改记录见 `docs/agentcrawler-issue-log.md`（改 bug 时请追加一条）。
 可选：项目根目录 `crawl_runtime.json` 作为默认参数（`--no-runtime-config` 禁用）；
