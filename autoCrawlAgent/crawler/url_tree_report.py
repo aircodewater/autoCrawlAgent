@@ -85,6 +85,37 @@ def node_updated_fields_json(
     return out
 
 
+def build_url_fields_document(
+    start_url: str,
+    url_node_topics: Mapping[str, List[str]],
+    url_display: Mapping[str, str],
+) -> Dict[str, List[str]]:
+    """URL → 在该页首次写入或更新过的字段名列表（与 topic 文件一致）。"""
+    display = dict(url_display or {})
+    root_n = _norm_url(start_url)
+    if root_n and start_url.strip():
+        display.setdefault(root_n, start_url.strip())
+
+    by_url = node_updated_fields_json(url_node_topics, display)
+    return {url: list(fields) for url, fields in sorted(by_url.items())}
+
+
+def write_url_fields_by_page(
+    *,
+    out_dir: Path,
+    stem: str,
+    start_url: str,
+    url_node_topics: Mapping[str, List[str]],
+    url_display: Mapping[str, str],
+) -> Path:
+    """写入 ``{{stem}}_url_fields.json``：扁平 JSON，键为 URL、值为字段名列表。"""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    doc = build_url_fields_document(start_url, url_node_topics, url_display)
+    json_path = (out_dir / f"{stem}_url_fields.json").resolve()
+    json_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+    return json_path
+
+
 def collect_graph_nodes_edges(
     start_url: str,
     edges: List[Dict[str, str]],

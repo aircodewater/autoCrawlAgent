@@ -7,12 +7,16 @@ import threading
 import sys
 
 # 测试参数设置
-start_iter = 5
+start_iter = 30
 step_iter = 5
 max_target = 63
-max_iter_limit = 5 # 最大--max-iter值
+max_iter_limit = 30 # 最大--max-iter值
 output_dir = r"D:\MutiAgent\AgentCrawler\results\test"
 url = "https://future.utoronto.ca/"
+topic_file = "topic"
+# True：子进程 main.py 会加载 crawl_runtime.json（natural_language_search、export_url_tree 等）
+# False：完全忽略 crawl_runtime.json，需自行在 cmd 里加 --enable-search / --no-url-tree 等
+use_runtime_config = True
 result_file = "max_iter_test_results.txt"
 
 # 进程锁文件路径
@@ -45,6 +49,13 @@ with open(result_file, 'w', encoding='utf-8') as f:
     f.write("# 开始测试时间: " + time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
     f.write("\n")
 print(f"已清空结果文件: {result_file}")
+if use_runtime_config:
+    print(
+        "子进程将加载 crawl_runtime.json（export_url_tree、natural_language_search 等）；"
+        "命令行上的 url / -o / --max-iter 仍会覆盖 JSON 里同名字段"
+    )
+else:
+    print("子进程使用 --no-runtime-config，不读取 crawl_runtime.json")
 
 # 记录结果
 results = []
@@ -68,10 +79,14 @@ def test_single_max_iter(current_iter, url, output_dir, result_file, max_target)
         "-u",
         "main.py",
         url,
+        "--topic-file",
+        topic_file,
         "-o",
         test_output_dir,
         f"--max-iter={current_iter}",
     ]
+    if not use_runtime_config:
+        cmd.insert(3, "--no-runtime-config")
     print(f"执行命令: {' '.join(cmd)}")
     
     try:
@@ -114,8 +129,9 @@ def test_single_max_iter(current_iter, url, output_dir, result_file, max_target)
             return {'max_iter': current_iter, 'non_empty_fields': -1, 'total_fields': -1, 'status': '读取目录失败'}
         
         json_files = [
-            f for f in all_json
-            if not f.endswith("_url_tree.json")
+            f
+            for f in all_json
+            if not f.endswith("_url_tree.json") and not f.endswith("_url_fields.json")
         ]
         crawl_main = [f for f in json_files if f.startswith("crawl_")]
         if crawl_main:

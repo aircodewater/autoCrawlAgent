@@ -5,6 +5,72 @@ from typing import List, Optional, Set
 from urllib.parse import urlparse
 
 
+def infer_school_and_program(
+    start_url: str,
+    results: Optional[dict] = None,
+) -> tuple[str, str]:
+    """
+    推断搜索用的学校名、专业名：优先 results 里已爬到的「院校名称」「专业名称」，
+    否则从 URL 路径等启发式补全。
+    """
+    results = results or {}
+    university = (
+        (results.get("院校名称") or results.get("学校名称") or results.get("大学名称") or "")
+        .strip()
+    )
+    program = (results.get("专业名称") or results.get("专业") or "").strip()
+
+    domain = extract_domain(start_url)
+    if not university:
+        if "utoronto" in domain:
+            university = "多伦多大学"
+        elif "mcgill" in domain:
+            university = "麦吉尔大学"
+        elif domain:
+            university = domain.split(".")[0].replace("-", " ").title()
+
+    if not program:
+        try:
+            path = urlparse(start_url).path or ""
+        except Exception:
+            path = ""
+        m = re.search(r"/program[s]?/([^/#?]+)", path, re.I)
+        if m:
+            slug = m.group(1).replace("-", " ").replace("_", " ")
+            program = slug.strip()
+
+    return university, program
+
+
+def pick_best_search_url(urls: List[str], base_url: str = "") -> str:
+    """从候选 URL 中选取最可能有用的一条（同域优先）。"""
+    if not urls:
+        return ""
+    base_domain = extract_domain(base_url) if base_url else ""
+    scored: List[tuple[str, int]] = []
+    for url in urls:
+        score = 0
+        if extract_domain(url) == base_domain and base_domain:
+            score += 10
+        if 20 <= len(url) <= 150:
+            score += 5
+        for kw in (
+            "admission",
+            "requirement",
+            "program",
+            "course",
+            "apply",
+            "degree",
+            "tuition",
+            "scholarship",
+        ):
+            if kw in url.lower():
+                score += 2
+        scored.append((url, score))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[0][0]
+
+
 def generate_search_queries(topic: str, base_url: str = "", max_queries: int = 1, 
                           university: str = "", program: str = "") -> List[str]:
     """

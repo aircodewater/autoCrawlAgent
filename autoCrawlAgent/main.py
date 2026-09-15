@@ -6,6 +6,8 @@ LLM：默认通义；可选 DeepSeek、Kimi/Moonshot（见 .env 与 LLM_PROVIDER
 可选：`--skill` / `--skill-dir` 加载本地 SKILL.md，注入各步 LLM 系统提示。
 导出流程图：`python main.py --export-graph docs/crawler.mmd`（无需 url；PNG 需 pygraphviz）。
 问题与修改记录见 `docs/agentcrawler-issue-log.md`（改 bug 时请追加一条）。
+可选：项目根目录 `crawl_runtime.json` 作为默认参数（`--no-runtime-config` 禁用）；
+`export_url_fields` / `export_url_tree` 或 `EXPORT_URL_FIELDS` / `EXPORT_URL_TREE=0` 控制附属 JSON/HTML。
 环境变量：`EXTRACT_TOPIC_BATCH_SIZE`（默认 12）、`LLM_MAX_OUTPUT_TOKENS`（默认 8192）；Kimi k2.5/2.6 快速模式：`KIMI_MODE=instant` 或 `MOONSHOT_THINKING=disabled`。
 """
 
@@ -23,11 +25,16 @@ from dotenv import load_dotenv
 
 from crawler.graph import run_crawl
 from crawler.graph_export import export_crawl_graph
+from crawler.runtime_config import (
+    argparse_defaults_from_runtime,
+    load_runtime_config,
+    resolve_runtime_config_path,
+)
 from crawler.skill_loader import load_skills
-from crawler.url_tree_report import write_url_tree_artifacts
+from crawler.url_tree_report import write_url_fields_by_page, write_url_tree_artifacts
 
 _DEFAULT_TOPIC_FILE = Path(__file__).resolve().parent / "topic"
-# 未指定 -o 时落盘目录（主 JSON、url_tree JSON/HTML）；可用 -o 覆盖
+# 未指定 -o 时落盘目录（主 JSON、url_fields、url_tree JSON/HTML）；可用 -o 覆盖
 _DEFAULT_OUTPUT_DIR = r"D:\canada\dsv4pro"
 
 
@@ -47,6 +54,40 @@ def load_topics_from_file(path: Path) -> list[str]:
     return out
 
 
+def _export_optional_artifact_enabled(
+    *,
+    disabled: bool,
+    force_enable: bool,
+    env_var: str,
+    default_on: bool = True,
+) -> bool:
+    """CLI 显式关闭优先；显式开启次之；否则读环境变量（未设则用 default_on）。"""
+    if disabled:
+        return False
+    if force_enable:
+        return True
+    raw = os.environ.get(env_var)
+    if raw is None:
+        return default_on
+    return raw.strip().lower() not in ("0", "false", "no", "off")
+
+
+def _export_url_fields_enabled(*, no_url_fields: bool, url_fields: bool) -> bool:
+    return _export_optional_artifact_enabled(
+        disabled=no_url_fields,
+        force_enable=url_fields,
+        env_var="EXPORT_URL_FIELDS",
+    )
+
+
+def _export_url_tree_enabled(*, no_url_tree: bool, url_tree: bool) -> bool:
+    return _export_optional_artifact_enabled(
+        disabled=no_url_tree,
+        force_enable=url_tree,
+        env_var="EXPORT_URL_TREE",
+    )
+
+
 def _configure_stdio_utf8() -> None:
     """避免 Windows 下 stdout/stderr 接管道时默认 GBK，与父进程按 UTF-8 读子进程输出不一致而乱码。"""
     if sys.platform != "win32":
@@ -61,8 +102,33 @@ def _configure_stdio_utf8() -> None:
 def main() -> None:
     _configure_stdio_utf8()
     load_dotenv()
+
+    runtime_path = resolve_runtime_config_path()
+    runtime_cfg: dict = {}
+    if runtime_path is not None:
+        try:
+            runtime_cfg = load_runtime_config(runtime_path)
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            print(
+                json.dumps({"error": f"读取运行配置失败: {e}"}, ensure_ascii=False),
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from e
+
     parser = argparse.ArgumentParser(
         description="主题驱动智能爬虫（LangGraph；LLM 可选通义 / DeepSeek）"
+    )
+    parser.add_argument(
+        "--runtime-config",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="运行配置 JSON（默认：若存在则加载项目根目录 crawl_runtime.json）",
+    )
+    parser.add_argument(
+        "--no-runtime-config",
+        action="store_true",
+        help="不读取 crawl_runtime.json（忽略默认配置文件）",
     )
     parser.add_argument(
         "url",
@@ -117,6 +183,26 @@ def main() -> None:
         help="跳过结束后对 results 的 LLM 精炼整合（默认会精炼多轮合并的长文）",
     )
     parser.add_argument(
+        "--no-url-fields",
+        action="store_true",
+        help="使用 -o 时不写入 *_url_fields.json（各 URL 爬到了哪些字段；默认写入）",
+    )
+    parser.add_argument(
+        "--url-fields",
+        action="store_true",
+        help="显式写入 *_url_fields.json（默认已开启；仅在与环境变量 EXPORT_URL_FIELDS=0 联用时需指定）",
+    )
+    parser.add_argument(
+        "--no-url-tree",
+        action="store_true",
+        help="使用 -o 时不写入 *_url_tree.json / *_url_tree.html（默认写入）",
+    )
+    parser.add_argument(
+        "--url-tree",
+        action="store_true",
+        help="显式写入 URL 结构树文件（默认已开启；仅在与 EXPORT_URL_TREE=0 联用时需指定）",
+    )
+    parser.add_argument(
         "--llm",
         type=str,
         choices=["tongyi", "deepseek", "kimi"],
@@ -163,7 +249,10 @@ def main() -> None:
     parser.add_argument(
         "--enable-search",
         action="store_true",
-        help="启用基于自然语言搜索的功能（自动为待处理主题生成搜索查询）",
+        help=(
+            "爬取结束后对仍未找到的 topic 做外搜（关键词：学校+专业+topic）；"
+            "爬取过程中不搜索；须 --max-iter>=30；也可用 crawl_runtime.json 的 natural_language_search"
+        ),
     )
     parser.add_argument(
         "--search-engine",
@@ -178,9 +267,16 @@ def main() -> None:
         type=float,
         default=0.5,
         metavar="THRESHOLD",
-        help="搜索阈值（0-1），值越大越倾向于执行搜索（默认 0.5）",
+        help="（已废弃，爬中不再使用）保留以兼容旧脚本",
     )
+    if runtime_cfg:
+        parser.set_defaults(**argparse_defaults_from_runtime(runtime_cfg))
     args = parser.parse_args()
+    if runtime_path is not None and runtime_cfg:
+        print(
+            f"[AgentCrawler] 已加载运行配置: {runtime_path.resolve()}",
+            file=sys.stderr,
+        )
     if isinstance(args.output, str) and not args.output.strip():
         args.output = None
     if args.llm:
@@ -311,19 +407,40 @@ def main() -> None:
         saved.write_text(text, encoding="utf-8")
         print(f"结果已保存: {saved}", file=sys.stderr)
         try:
-            j_tree, h_tree = write_url_tree_artifacts(
-                out_dir=out_dir,
-                stem=stem,
-                start_url=args.url,
-                url_nav_edges=list(out.get("url_nav_edges") or []),
-                url_node_topics=dict(out.get("url_node_topics") or {}),
-                url_display=dict(out.get("url_display") or {}),
-            )
-            print(f"[AgentCrawler] URL 结构树 JSON: {j_tree}", file=sys.stderr)
-            print(f"[AgentCrawler] URL 结构树可视化（用浏览器打开）: {h_tree}", file=sys.stderr)
+            url_node_topics = dict(out.get("url_node_topics") or {})
+            url_display = dict(out.get("url_display") or {})
+            if _export_url_fields_enabled(
+                no_url_fields=args.no_url_fields,
+                url_fields=args.url_fields,
+            ):
+                j_fields = write_url_fields_by_page(
+                    out_dir=out_dir,
+                    stem=stem,
+                    start_url=args.url,
+                    url_node_topics=url_node_topics,
+                    url_display=url_display,
+                )
+                print(f"[AgentCrawler] URL→字段映射: {j_fields}", file=sys.stderr)
+            if _export_url_tree_enabled(
+                no_url_tree=args.no_url_tree,
+                url_tree=args.url_tree,
+            ):
+                j_tree, h_tree = write_url_tree_artifacts(
+                    out_dir=out_dir,
+                    stem=stem,
+                    start_url=args.url,
+                    url_nav_edges=list(out.get("url_nav_edges") or []),
+                    url_node_topics=url_node_topics,
+                    url_display=url_display,
+                )
+                print(f"[AgentCrawler] URL 结构树 JSON: {j_tree}", file=sys.stderr)
+                print(
+                    f"[AgentCrawler] URL 结构树可视化（用浏览器打开）: {h_tree}",
+                    file=sys.stderr,
+                )
         except OSError as e:
             print(
-                f"[AgentCrawler] 写入 URL 结构树失败（可忽略）: {e}",
+                f"[AgentCrawler] 写入 URL 附属文件失败（可忽略）: {e}",
                 file=sys.stderr,
             )
     print(text)

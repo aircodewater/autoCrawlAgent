@@ -36,13 +36,10 @@ from crawler.llm_client import (
     refine_merged_results,
     reset_llm_token_usage,
 )
-from crawler.search_integration import (
-    SearchDrivenCrawler,
-    SearchDecisionMaker,
-    create_search_driven_crawler,
-    create_search_decision_maker,
-)
 from crawler.state import CrawlerState
+
+# 爬后自然语言搜索：仅当 max_iterations >= 该值且 enable_search 时执行
+POST_CRAWL_SEARCH_MIN_MAX_ITER = 30
 
 
 def _extract_topic_batch_size() -> int:
@@ -331,27 +328,71 @@ def _merge_topic_text(old: str, new: str) -> str:
     return old + "\n\n---\n\n" + new
 
 
-def build_graph(session: BrowserSession, enable_search: bool = False, search_threshold: float = 0.5):
-    """构建 ReAct 风格状态图：加载 → 快照 → LLM 抽取 → 条件分支 → 规划点击 → 循环。
-    
-    Args:
-        session: 浏览器会话实例
-        enable_search: 是否启用搜索功能
-        search_threshold: 搜索阈值（0-1），值越大越倾向于搜索
-    """
-    # 初始化搜索相关组件
-    search_crawler = None
-    search_decision_maker = None
-    if enable_search:
-        search_crawler = create_search_driven_crawler(
-            browser_session=session,
-            enable_search=enable_search,
-            max_search_results=10,
-        )
-        search_decision_maker = create_search_decision_maker(
-            enable_auto_search=True,
-            search_threshold=search_threshold,
-        )
+def _build_extract_system_prompt(skill_context: Optional[str]) -> str:
+    sys_extract = (
+        "你是网页信息抽取助手。用户给出的每一项 topic 都是一条**需要直接回答的问题**（不是关键词检索标签）。\n"
+        "规则：\n"
+        "1. **可写入 topic_texts 的内容**：必须能**具体作答**该问题——例如事实、条件、步骤、数据、定义、列表等；"
+        "写成连贯摘要或摘录，去掉广告、导航、页脚、版权声明。\n"
+        "2. **禁止当作答案写入**（须对应空字符串 \"\" 或**省略该键**，且将该 topic 放入 pending_topics）：\n"
+        "   - 仅有与问题同主题的**板块标题、菜单名、按钮/链接文案**而无正文细节；\n"
+        "   - 仅有**引导语、口号、营销句**但**没有**要求、资格、流程、截止日期等实质信息。\n"
+        "3. 若本页提供了可作答的片段（即使不完整），可写入 topic_texts；仍缺的部分通过 pending_topics 标明需继续查找。\n"
+        "4. topic_texts 的键必须严格来自用户消息中给出的**本批** topic 列表。\n"
+        "5. pending_topics：列出在本页**仍未得到实质性回答**的 topic。\n"
+        "6. **禁止**在 topic_texts 的正文里使用「详见」「点击」「请参考」「了解更多」「click here」等引导跳转的套话代替实质内容。\n"
+        "输出严格 JSON：{\"topic_texts\": {...}, \"pending_topics\": [...]}"
+    )
+    sk = (skill_context or "").strip()
+    if sk:
+        sys_extract += "\n\n【附加：领域说明（本地 Skill 文件）】\n" + sk + "\n"
+    return sys_extract
+
+
+def extract_topics_from_page_text(
+    page_text: str,
+    topics: List[str],
+    prior: Dict[str, str],
+    *,
+    skill_context: Optional[str] = None,
+) -> Dict[str, Any]:
+    """从当前页正文抽取指定 topics，返回合并后的 results 子集及本页有更新的 topic 键。"""
+    sys_extract = _build_extract_system_prompt(skill_context)
+    prior_json = json.dumps(prior, ensure_ascii=False)
+    if len(prior_json) > 22000:
+        prior_json = prior_json[:22000] + "\n...[此前回答过长已截断]"
+    bs = _extract_topic_batch_size()
+    acc = ExtractionPayload(topic_texts={}, pending_topics=[])
+    for i in range(0, len(topics), bs):
+        batch = topics[i : i + bs]
+        part = _extract_batch_recursive(sys_extract, batch, page_text, prior_json)
+        acc = _merge_two_payloads(acc, part)
+
+    merged = dict(prior)
+    updated_keys: List[str] = []
+    for k, v in (acc.topic_texts or {}).items():
+        if k not in topics:
+            continue
+        if _topic_answer_is_nav_teaser(v):
+            continue
+        new_merged = _merge_topic_text(merged.get(k, ""), v)
+        if new_merged != (merged.get(k, "") or "").strip():
+            updated_keys.append(k)
+        merged[k] = new_merged
+
+    pending = [t for t in (acc.pending_topics or []) if t in topics]
+    if not pending:
+        pending = [t for t in topics if not (merged.get(t) or "").strip()]
+
+    return {
+        "results": {t: merged[t] for t in topics if (merged.get(t) or "").strip()},
+        "pending_topics": pending,
+        "updated_topic_keys": updated_keys,
+    }
+
+
+def build_graph(session: BrowserSession):
+    """构建 ReAct 风格状态图：加载 → 快照 → LLM 抽取 → 条件分支 → 规划点击 → 循环。"""
 
     def node_load(state: CrawlerState) -> Dict[str, Any]:
         _log_crawler_progress(state, "加载页面（打开起始 URL）")
@@ -690,7 +731,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
 
         return {"nav_stack": [], "visited_urls": visited, "nav_route": "fallthrough"}
 
-    def route_after_nav(state: CrawlerState) -> Literal["snapshot", "plan", "search", "end"]:
+    def route_after_nav(state: CrawlerState) -> Literal["snapshot", "plan", "end"]:
         nr = state.get("nav_route") or "fallthrough"
         if nr == "snapshot":
             return "snapshot"
@@ -707,147 +748,10 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
             return "end"
         pending: List[str] = state.get("pending_topics") or []
         if pending:
-            # 如果启用搜索，检查是否需要搜索
-            if search_crawler and search_decision_maker:
-                decision = search_decision_maker.decide_search(
-                    topics=state.get("topics") or [],
-                    current_results=state.get("results") or {},
-                    pending_topics=pending,
-                    iteration=int(state.get("iteration") or 0),
-                    max_iterations=max_it,
-                    base_url=state.get("url") or "",
-                    current_page_results=state.get("current_page_results") or {},
-                )
-                if decision.get("should_search"):
-                    print(f"[AgentCrawler] 决定执行搜索: {decision.get('reason')}", file=sys.stderr)
-                    return "search"
             return "plan"
         if state.get("explore_worthy"):
             return "plan"
         return "end"
-
-    def node_search(state: CrawlerState) -> Dict[str, Any]:
-        """搜索节点：基于待处理主题执行搜索，并返回搜索结果"""
-        _log_crawler_progress(state, "外搜（搜索引擎辅助）")
-        if not search_crawler or not search_decision_maker:
-            return {"last_error": "搜索功能未启用", "nav_route": "fallthrough"}
-        
-        topics: List[str] = state.get("topics") or []
-        pending: List[str] = state.get("pending_topics") or []
-        base_url = state.get("url") or ""
-        current_results = state.get("results") or {}
-        iteration = int(state.get("iteration") or 0)
-        max_iterations = int(state.get("max_iterations") or 5)
-        
-        # 获取搜索决策（包含要搜索的主题）
-        decision = search_decision_maker.decide_search(
-            topics=topics,
-            current_results=current_results,
-            pending_topics=pending,
-            iteration=iteration,
-            max_iterations=max_iterations,
-            base_url=base_url,
-            current_page_results=state.get("current_page_results") or {},
-        )
-        
-        if not decision.get("should_search"):
-            return {"nav_route": "fallthrough"}
-        
-        topics_to_search = decision.get("topics_to_search", [])
-        if not topics_to_search:
-            return {"nav_route": "fallthrough"}
-        
-        print(f"[AgentCrawler] 开始搜索 {len(topics_to_search)} 个主题: {topics_to_search}", file=sys.stderr)
-        
-        # 收集所有搜索结果
-        all_urls = []
-        all_search_results = []
-        
-        # 直接使用 search_agent 进行搜索
-        from crawler.search_agent import create_search_agent
-        search_agent = create_search_agent()
-        
-        for topic in topics_to_search:
-            try:
-                # 执行搜索（简化为单一精准查询）
-                search_results = search_agent.search_by_topic(
-                    topic=topic,
-                    base_url=base_url,
-                    max_results=10,  # 每个topic最多返回10个结果
-                    university=base_url,  # 使用base_url提取院校信息（如果有）
-                    program="",  # 暂不使用专业信息
-                )
-                
-                if search_results:
-                    print(
-                        f"[AgentCrawler] 主题 '{topic}' 搜索完成，找到 {len(search_results)} 个结果",
-                        file=sys.stderr,
-                    )
-                    
-                    # 提取 URLs
-                    urls = search_agent.extract_urls(search_results)
-                    if urls:
-                        all_urls.extend(urls[:3])  # 每个topic最多取前3个URL
-                        all_search_results.extend(search_results[:3])
-            except Exception as e:
-                print(f"[AgentCrawler] 主题 '{topic}' 搜索失败: {e}", file=sys.stderr)
-                continue
-        
-        # 去重 URLs
-        from crawler.search_utils import deduplicate_urls
-        unique_urls = deduplicate_urls(all_urls)
-        
-        # 选择最相关的 2-3 个 URL
-        if unique_urls:
-            base_domain = extract_domain(base_url) if base_url else ""
-            url_scores = []
-            
-            for url in unique_urls:
-                score = 0
-                url_domain = extract_domain(url)
-                
-                # 同域名加分
-                if url_domain == base_domain:
-                    score += 10
-                
-                # URL 长度适中加分（避免过长或过短的URL）
-                if 20 <= len(url) <= 150:
-                    score += 5
-                
-                # 包含某些关键词加分
-                keywords = ["admission", "requirement", "program", "course", "apply", "degree", "how", "cost", "scholarship"]
-                for kw in keywords:
-                    if kw in url.lower():
-                        score += 2
-                
-                url_scores.append((url, score))
-            
-            # 按分数排序，选择前3个
-            url_scores.sort(key=lambda x: x[1], reverse=True)
-            best_urls = [url for url, score in url_scores[:3]]
-            
-            if best_urls:
-                print(f"[AgentCrawler] 选择最相关的 {len(best_urls)} 个搜索结果 URL:", file=sys.stderr)
-                for i, url in enumerate(best_urls, 1):
-                    score = url_scores[i-1][1] if i <= len(url_scores) else 0
-                    print(f"  {i}. {url} (分数: {score})", file=sys.stderr)
-                
-                # 导航到第一个最佳 URL
-                try:
-                    before_n = _norm_url(session.current_url or "")
-                    session.goto(best_urls[0])
-                    uextra = _merge_url_nav_edge(state, before_n, session.current_url or "")
-                    return {
-                        "nav_route": "snapshot",
-                        "iteration": iteration + 1,
-                        "search_result_urls": best_urls,  # 保存其他URL备用
-                        **uextra,
-                    }
-                except Exception as e:
-                    print(f"[AgentCrawler] 导航到搜索结果失败: {e}", file=sys.stderr)
-        
-        # 如果没有搜索结果或导航失败，返回 fallthrough
-        return {"nav_route": "fallthrough"}
 
     def node_plan(state: CrawlerState) -> Dict[str, Any]:
         _log_crawler_progress(state, "交互规划（选择下一步点击）")
@@ -1081,7 +985,6 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
     g.add_node("snapshot", node_snapshot)
     g.add_node("extract", node_extract)
     g.add_node("nav_dfs", node_nav_dfs)
-    g.add_node("search", node_search)
     g.add_node("plan", node_plan)
     g.add_node("retreat_home", node_retreat_home)
     g.add_node("click", node_click)
@@ -1093,12 +996,7 @@ def build_graph(session: BrowserSession, enable_search: bool = False, search_thr
     g.add_conditional_edges(
         "nav_dfs",
         route_after_nav,
-        {"snapshot": "snapshot", "plan": "plan", "search": "search", "end": END},
-    )
-    g.add_conditional_edges(
-        "search",
-        lambda state: state.get("nav_route", "fallthrough"),
-        {"snapshot": "snapshot", "fallthrough": "plan"},
+        {"snapshot": "snapshot", "plan": "plan", "end": END},
     )
     g.add_conditional_edges(
         "plan",
@@ -1126,10 +1024,10 @@ def run_crawl(
     """同步运行爬虫图，返回最终状态。refine_results 为 True 时对合并后的 results 再经模型精炼去重。
     skill_context 为本地 Skill 正文时，会注入各步 LLM 系统提示与精炼阶段。
     max_home_retreats：规划判定无有效交互时，允许从子页退回起始 URL 再规划的次数；0 表示关闭。
-    enable_search：是否启用搜索功能。
-    search_threshold：搜索阈值（0-1），值越大越倾向于搜索。"""
+    enable_search：爬取结束后是否启用自然语言搜索（每缺 1 个 topic 搜 1 次；须 max_iterations>=30）。
+    search_threshold：保留参数以兼容旧调用，爬中不再使用。"""
     session = BrowserSession(headless=headless)
-    graph = build_graph(session, enable_search=enable_search, search_threshold=search_threshold)
+    graph = build_graph(session)
     init: CrawlerState = {
         "url": url,
         "topics": list(topics),
@@ -1165,9 +1063,24 @@ def run_crawl(
         reset_llm_token_usage()
         get_chat_model()
         out = graph.invoke(init)
+        s = finalize_state(out)  # type: ignore[arg-type]
+        if enable_search:
+            if max_iterations >= POST_CRAWL_SEARCH_MIN_MAX_ITER:
+                print(
+                    "[AgentCrawler] 进度: 主图已结束 · 阶段：爬后自然语言搜索（未找到的 topic）",
+                    flush=True,
+                )
+                from crawler.post_crawl_search import run_post_crawl_natural_language_search
+
+                s = run_post_crawl_natural_language_search(session, s)
+            else:
+                print(
+                    f"[AgentCrawler] natural_language_search 已开启，但 max_iterations="
+                    f"{max_iterations} < {POST_CRAWL_SEARCH_MIN_MAX_ITER}，跳过爬后搜索",
+                    file=sys.stderr,
+                )
     finally:
         session.stop()
-    s = finalize_state(out)  # type: ignore[arg-type]
     if refine_results:
         tlist = list(s.get("topics") or topics)
         prev = dict(s.get("results") or {})
